@@ -255,9 +255,9 @@ function openSheet(refresh) { if (refresh) { const f = ovStack[ovStack.length - 
 // item picker: the category grid the game opens from a slot
 function picker(key) {
   const kind = SLOT[key].kind;
-  const weapon = kind === 'melee' || kind === 'ranged';  // weapons list once, as their unique
-  const list = D.items.filter(i => i.k === kind && !(weapon && i.uq)).sort((a, b) => a.u - b.u || a.n.localeCompare(b.n));
-  const cur = S.gear[key]?.id && (ITEM[S.gear[key].id].uq && (kind === 'melee' || kind === 'ranged') ? ITEM[S.gear[key].id].uq : S.gear[key].id);
+  // a base item with a unique twin (UniqueSubstitution) lists once, as the unique; rarity in the panel picks which
+  const list = D.items.filter(i => i.k === kind && !i.uq).sort((a, b) => a.u - b.u || a.n.localeCompare(b.n));
+  const cur = S.gear[key]?.id && (ITEM[S.gear[key].id].uq || S.gear[key].id);
   overlay(D.slotLabel[kind] || D.sections.find(s => s.id === SLOT[key].section).n,
     `<div class="pgrid">${list.map(it => `<div class="pcell">${cellHTML(it, null, `data-act="equip" data-id="${it.id}" ${it.id === cur ? 'aria-current="true"' : ''}`)}<span>${esc(it.n)}</span></div>`).join('')}</div>`, { keepScroll: true });
 }
