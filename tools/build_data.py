@@ -326,7 +326,7 @@ def drop_row(tag, seen=None):
     if tag in seen:
         return None
     seen.add(tag)
-    if tag in DROP:
+    if DROP.get(tag, {}).get('primary'):  # empty lists are never registered (0x14562b503: skip when Num == 0)
         return DROP[tag]
     for p in parents(tag):
         r = drop_row(p, seen)
