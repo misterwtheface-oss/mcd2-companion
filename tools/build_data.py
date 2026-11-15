@@ -1,6 +1,6 @@
 """Build the MCD2 loadout builder's shipped data + assets from the sibling ../_mcd2_extract datamine.
 
-usage: python tools/build_data.py [--strict]
+usage: python tools/build_data.py [--strict] [--force]
 
 Out:
   data/data.js          window.MCD2 = {...} (the only data file the app loads)
@@ -26,6 +26,7 @@ TAB = os.path.join(X, 'data', 'app', 'tables')
 UFS = os.path.join(X, 'data', 'raw', 'Dungeons', 'Content', 'Spicewood', 'Core', 'DataTables', 'UFS')
 TEX = os.path.join(X, 'assets', 'tex', 'Dungeons')
 STRICT = '--strict' in sys.argv
+FORCE = '--force' in sys.argv  # re-encode every image (after changing ship() itself)
 
 errors, flags, prov = [], [], {}
 
@@ -60,6 +61,9 @@ def ship(src, group, name=None, size=None):
     rel = f'assets/{group}/{name}.webp'
     out = os.path.join(APP, rel)
     os.makedirs(os.path.dirname(out), exist_ok=True)
+    prov[rel] = os.path.relpath(full, X).replace('\\', '/')
+    if not FORCE and os.path.isfile(out) and os.path.getmtime(out) >= os.path.getmtime(full):
+        return rel  # source unchanged since the last encode (lossless webp method 6 is slow); --force re-encodes
     im = Image.open(full).convert('RGBA')
     if size and max(im.size) > size:  # downscale only (G-no-ai-scaler: never upscale)
         im = im.resize((size, size) if im.width == im.height else
@@ -70,7 +74,8 @@ def ship(src, group, name=None, size=None):
     if not os.path.isfile(out) or open(out, 'rb').read() != data:
         with open(out, 'wb') as f:
             f.write(data)
-    prov[rel] = os.path.relpath(full, X).replace('\\', '/')
+    else:
+        os.utime(out)
     return rel
 
 
@@ -526,7 +531,7 @@ try:
                     ('five', 'Font_Spicewood_FiveV2_Bold')):
         raw = open(os.path.join(FONT_SRC, fn + '.ufont'), 'rb').read()
         otf = raw[4:] if raw[4:8] in (b'OTTO', b'\x00\x01\x00\x00') else raw
-        f = TTFont(io.BytesIO(otf))
+        f = TTFont(io.BytesIO(otf), recalcTimestamp=False)  # deterministic output (no rebuild churn)
         opts = subset.Options()
         opts.flavor = 'woff2'
         opts.layout_features = ['*']
