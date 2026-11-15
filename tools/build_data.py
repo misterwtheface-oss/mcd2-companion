@@ -343,6 +343,9 @@ def add_items(cat, table):
         fixed = [t for t in listed if not t.startswith('SW.Enchantment.') and ensure_template(t)]
         if fixed:
             rec['fx'] = fixed
+        sub = (it['properties'].get(table, {}).get('UniqueSubstitutionData') or {}).get('UniqueSubstitution')
+        if sub and sub != 'None':
+            rec['uq'] = sub  # base -> its unique (rolled Unique swaps the type, PROCEDURAL_MAP 3.6)
         built_in = [t for t in listed if t.startswith('SW.Enchantment.') and ensure_ench(t, True)]
         if built_in:
             rec['ue'] = built_in[0]
@@ -442,6 +445,17 @@ for cat, table in (('melee', 'DT_ItemDefinitionMelee'), ('ranged', 'DT_ItemDefin
                    ('armor', 'DT_ItemDefinitionArmor'), ('artifact', 'DT_ItemDefinitionArtifact'),
                    ('talisman', 'DT_ItemDefinitionTalisman')):
     add_items(cat, table)
+BY_ID = {r['id']: r for r in items}
+for r in items:
+    if 'uq' in r:
+        if r['uq'] not in BY_ID:
+            errors.append(f"{r['id']}: unique substitution {r['uq']} is not a shipped item")
+            del r['uq']
+        else:
+            BY_ID[r['uq']]['base'] = r['id']
+for r in items:
+    if r['u'] and r['k'] in ('melee', 'ranged') and 'base' not in r:
+        errors.append(f"unique weapon {r['id']} has no base weapon")
 
 flag('enchantment', 'Which gear each enchantment can go on is not decoded yet; the builder allows any enchantment on any '
      'weapon, armor piece or artifact.')

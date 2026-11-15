@@ -198,7 +198,8 @@ function tooltipHTML(key, editable) {
       <div><h5>${esc(en.n)}${it.ue ? '' : ' ' + TIER_NUM[(g.enl || 1) - 1]}</h5><p>${enchDesc(enId)}</p>${it.ue ? '' : flagMark('enchantment', 'level')}</div></div>`
     : editable && !tal ? `<button class="ench add" data-act="pickench"><span class="effic"><img src="${D.art.enchSwirl}" alt=""></span><div><h5>${esc(UI.Label_Enchantment || 'Enchantment')}</h5></div></button>` : '';
   const rarBadge = rar ? `<span class="rtag" style="--rc:${rar.c}"><i style="-webkit-mask-image:url('${rar.badge}');mask-image:url('${rar.badge}')"></i>${esc(rar.n.toUpperCase())}</span>` : '';
-  const rarPick = editable && !tal && !it.u ? `<div class="rpick">${D.rarities.filter(r => r.id !== 'Unique').map(r =>
+  const paired = it.uq || it.base;  // base weapon <-> its unique: one entry, rarity decides which
+  const rarPick = editable && !tal && (!it.u || paired) ? `<div class="rpick">${D.rarities.filter(r => paired || r.id !== 'Unique').map(r =>
     `<button data-act="rar" data-r="${r.id}" style="--rc:${r.c}" ${r.id === g.rar ? 'aria-pressed="true"' : ''}>${esc(r.n)}</button>`).join('')}</div>` : '';
   const ipCtl = tal ? `<div class="talvl">${it.lv.map((l, i) => `<button data-act="tlv" data-l="${i + 1}" ${(g.lv || 1) === i + 1 ? 'aria-pressed="true"' : ''}>${TIER_NUM[i] || i + 1}</button>`).join('')}</div>`
     : editable ? `<span class="ipv"><span class="ipicon sm"></span><button data-act="ip" data-d="-1">‹</button><input id="ipin" type="number" inputmode="numeric" min="1" max="999" value="${g.ip}"><button data-act="ip" data-d="1">›</button></span>`
@@ -211,7 +212,7 @@ function tooltipHTML(key, editable) {
         <h4>${esc(it.n)}</h4>
         ${stats.length ? `<div class="srow">${stats.join('')}</div>` : ''}
         ${rarPick}</div>
-      <div class="bigic" style="--rc:${rar ? rar.c : '#5a6372'}"><span class="rbg"></span>${(tal ? it.lv[(g.lv || 1) - 1]?.i : it.i) ? `<img src="${tal ? it.lv[(g.lv || 1) - 1].i : it.i}" alt="">` : flagMark('item')}</div>
+      <div class="bigic" data-k="${esc(it.id)}" style="--rc:${rar ? rar.c : '#5a6372'}"><span class="rbg"></span>${(tal ? it.lv[(g.lv || 1) - 1]?.i : it.i) ? `<img src="${tal ? it.lv[(g.lv || 1) - 1].i : it.i}" alt="">` : flagMark('item')}</div>
     </div>
     <div class="lower">
       ${it.d ? `<p class="desc">${esc(it.d)}</p>` : ''}
@@ -223,7 +224,15 @@ const isDesktop = () => matchMedia('(min-width: 1000px)').matches;
 function renderTip() {
   $('#tip').innerHTML = focus ? tooltipHTML(focus, true) : '';
 }
-function renderAll() { renderStats(); renderChar(); renderGear(); renderTip(); if (sheetOpen()) openSheet(true); }
+function playSwap() {  // the item became its base / unique: cross-fade the icon and name in place
+  if (!swapped) return;
+  document.querySelectorAll(`.bigic[data-k="${CSS.escape(swapped)}"]`).forEach(el => {
+    const tt = el.closest('.tt');
+    [el, tt?.querySelector('h4'), tt?.querySelector('.desc')].forEach(n => { if (n) { n.classList.remove('swap'); void n.offsetWidth; n.classList.add('swap'); } });
+  });
+  swapped = null;
+}
+function renderAll() { renderStats(); renderChar(); renderGear(); renderTip(); if (sheetOpen()) openSheet(true); playSwap(); }
 
 // ---------------------------------------------------------------- overlay (one implementation for every chooser)
 let ovStack = [];
@@ -246,8 +255,9 @@ function openSheet(refresh) { if (refresh) { const f = ovStack[ovStack.length - 
 // item picker: the category grid the game opens from a slot
 function picker(key) {
   const kind = SLOT[key].kind;
-  const list = D.items.filter(i => i.k === kind).sort((a, b) => a.u - b.u || a.n.localeCompare(b.n));
-  const cur = S.gear[key]?.id;
+  const weapon = kind === 'melee' || kind === 'ranged';  // weapons list once, as their unique
+  const list = D.items.filter(i => i.k === kind && !(weapon && i.uq)).sort((a, b) => a.u - b.u || a.n.localeCompare(b.n));
+  const cur = S.gear[key]?.id && (ITEM[S.gear[key].id].uq && (kind === 'melee' || kind === 'ranged') ? ITEM[S.gear[key].id].uq : S.gear[key].id);
   overlay(D.slotLabel[kind] || D.sections.find(s => s.id === SLOT[key].section).n,
     `<div class="pgrid">${list.map(it => `<div class="pcell">${cellHTML(it, null, `data-act="equip" data-id="${it.id}" ${it.id === cur ? 'aria-current="true"' : ''}`)}<span>${esc(it.n)}</span></div>`).join('')}</div>`, { keepScroll: true });
 }
@@ -322,6 +332,27 @@ function setFocus(key) {
   renderGear();
   if (isDesktop()) renderTip();
 }
+// rarity across a base / unique pair: Unique = the unique item, anything lower = its base item (UniqueSubstitution)
+function setRarity(g, r) {
+  const it = ITEM[g.id];
+  const to = r === 'Unique' ? (it.uq || g.id) : (it.base || g.id);
+  g.rar = r;
+  if (to !== g.id) {
+    g.id = to;
+    swapped = to;
+  }
+  const nit = ITEM[g.id];
+  const pool = new Set(D.pools[nit.p].map(([t]) => t));
+  const fixed = new Set((nit.fx || []).map(t => D.templates[t].e));
+  const seen = new Set();
+  g.fx = (g.fx || []).map(t => {  // keep a rolled effect only if the new item and rarity can still roll it
+    const tp = t && D.templates[t];
+    if (!tp || !pool.has(t) || (tp.ra && !tp.ra.includes(r)) || fixed.has(tp.e) || seen.has(tp.e)) return null;
+    seen.add(tp.e);
+    return t;
+  });
+}
+let swapped = null;
 function equip(id) {
   const it = ITEM[id];
   const rar = it.k === 'talisman' ? null : it.u ? 'Unique' : (S.gear[focus]?.rar && S.gear[focus].rar !== 'Unique' ? S.gear[focus].rar : 'Rare');
@@ -355,7 +386,7 @@ document.addEventListener('click', ev => {
     case 'equip': equip(d.id); break;
     case 'change': push(() => picker(focus)); break;
     case 'remove': delete S.gear[focus]; save(); closeOv(); renderAll(); break;
-    case 'rar': g.rar = d.r; save(); renderAll(); break;
+    case 'rar': setRarity(g, d.r); save(); renderAll(); break;
     case 'ip': g.ip = Math.max(1, Math.min(999, g.ip + +d.d)); save(); renderAll(); break;
     case 'storm': g.storm = !g.storm; save(); renderAll(); break;
     case 'tlv': g.lv = +d.l; save(); renderAll(); break;
