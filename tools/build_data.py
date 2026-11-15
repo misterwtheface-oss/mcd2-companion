@@ -256,6 +256,13 @@ def effect_category(etag):
 
 eff_out, tpl_out = {}, {}
 ICONLESS = set()
+COMPANIONS = []
+PLACEHOLDER = set()  # game text that is an unfinished dev placeholder (shipped as-is in the game's English table)
+PH_KEY = re.compile(r'^[A-Za-z0-9]+(_[A-Za-z0-9]+)+$')  # e.g. DropChance_TalismanEffect
+
+
+def placeholder(text):
+    return bool(text) and (PH_KEY.match(text) is not None or text.endswith('Talisman Description'))
 UNFILLED = set()  # descriptions with a second number the data cannot supply
 
 
@@ -271,6 +278,9 @@ def ensure_effect(etag):
         ICONLESS.add(etag)
     eff_out[etag] = {'n': e['name'], 'd': e['desc'], 'i': ver(icon), 'f': fmt_of(etag),
                      'c': effect_category(etag), 'lb': e.get('lower_is_better', False)}
+    if placeholder(e['name']):
+        eff_out[etag]['ph'] = 1  # the app hides the name and flags it
+        PLACEHOLDER.add(etag)
     if '{1}' in (e['desc'] or ''):
         eff_out[etag]['p'] = extra_values(etag)
         if any(v is None for v, _ in eff_out[etag]['p']):
@@ -438,6 +448,9 @@ def add_items(cat, table):
         kv = kv_named(f)
         tagset = ancestry([tag] + traits)
         rec = {'id': tag, 'k': kind, 'n': it['name'], 'd': it.get('desc')}
+        if placeholder(rec['d']):
+            rec['d'] = None
+            PLACEHOLDER.add(tag)
         icon = ship(it['icon'], 'items', size=128) if it.get('icon') else None
         rec['i'] = ver(icon)
         if not icon:
@@ -481,6 +494,16 @@ def add_items(cat, table):
                 rec['cd'] = kv['CooldownDuration']
             if 'SoulArtifact.ActivationCost' in kv:
                 rec['soul'] = kv['SoulArtifact.ActivationCost']
+        if cat == 'talisman':
+            comp = next((kv_named({'KeyValues': g.get('SpecificKeyValues', [])}).get('CompanionTag')
+                         for g in f.get('GrantedAbilities') or []), None)
+            if comp:  # companion talisman: base stats of the summoned mob (DT_MobCompanionDefinition)
+                mf = facet_of(comp, 'DT_MobCompanionDefinition')
+                hp = next((a['Value'] for a in mf.get('AttributeValues', []) if a['Attribute']['TagName'] == 'SW.Attribute.Health'), None)
+                dmg = next((kv_named({'KeyValues': ab.get('SpecificKeyValues', [])}).get('Damage')
+                            for ab in mf.get('Abilities', []) if kv_named({'KeyValues': ab.get('SpecificKeyValues', [])}).get('Damage') is not None), None)
+                rec['comp'] = {k: v for k, v in (('hp', hp), ('dmg', dmg)) if v is not None}
+                COMPANIONS.append(tag)
         if cat == 'talisman':
             rec['lv'] = []
             for L in it.get('levels') or []:
@@ -731,6 +754,12 @@ def walk_paths(o):
         yield o
 
 
+if COMPANIONS:
+    flag('stats', 'Companion talismans show the summoned companion base health and attack damage; how they grow with talisman '
+         'level is in game code (the level only grants a tag no data table reads), not decoded yet.', COMPANIONS)
+if PLACEHOLDER:
+    flag('text', 'The game ships placeholder text here (a dev key such as DropChance_TalismanEffect, or "... Talisman '
+         'Description"); the app hides it.', sorted(PLACEHOLDER))
 if UNFILLED:
     flag('text', 'A number in these descriptions is read from live game state, not from data; shown as ?', sorted(UNFILLED))
 if ICONLESS:

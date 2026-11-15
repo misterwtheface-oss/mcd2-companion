@@ -9,6 +9,7 @@
 - Weapon Stats (collapsible, below the tooltip): melee per combo step (damage, hit time, step time, speed multiplier), combo damage / time / damage per second, reach, splash, jump attack, combo reset, on-hit statuses; ranged shot interval, arrows, damage factor, charge, ammo, reload. Speed decoded (extract PROCEDURAL_MAP 11) and follows equipped Swiftness / Reload. Level cap 100 from DT_PlayerDefinition LevelMax.
 - Picker = list of tiles: slot art, name, built-in effect / enchantment, key numbers (melee combo damage, hits, time, DPS; ranged shot interval, damage factor, arrows, ammo; artifact description, cooldown, souls). Descriptions fill every placeholder ({1}+ from ability key values); enchantments whose number is the level magnitude use the I / II / III values.
 - Back button: every open menu level is a history entry (device / browser back, Esc, in-menu ‹ step back one level; close / backdrop drop all levels); on the base screen back is normal page history. Verified with tools/app/flow.py (base screen = history entry 0).
+- Character pose + skin picker off (FEATURES.character = false); slots + tooltip carry the screen. Defaults: artifacts Special, talismans level III. Game placeholder text (dev-key effect names, "X Talisman Description") hidden + flagged. Companion talismans (5) show what they summon + the companion's base health / damage.
 - Mobile first: phone = stacked band / character / grid, tooltip as bottom sheet; >= 1000 px = the game's 3 columns.
 
 ## Open
@@ -19,4 +20,5 @@
 - [ ] Enchantment I-III scaling for ability-based enchantments (level-magnitude ones done) and per-gear applicability; 5 descriptions read live state ({0}/{1} shown as ?)
 - [ ] Armor base protection by weight class; item-power factor on weapon damage (PROCEDURAL_MAP 8, needs threat)
 - [ ] Arrow base damage (not in data); queued-attack cancel timing in combos; Short Spear has 3 hits but 2 animation sections
+- [ ] Companion talisman level scaling (level grants SW.Talisman.<X>.Level.N, read only in code)
 - [ ] Cosmetics (cape, pet) live on a separate game screen; potion slot only on the HUD

@@ -231,3 +231,9 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .chips span { font: 15px var(--f-head); color: var(--txt); }
 .chips i { font: normal 600 10px var(--f-body); color: var(--sub); text-transform: uppercase; margin-right: 4px; letter-spacing: .04em; }
 @media (min-width: 640px) { .tiles { display: grid; grid-template-columns: 1fr 1fr; } }
+
+/* FEATURES.character off: the slot grid and the tooltip carry the screen */
+body.nochar .char { display: none; }
+@media (min-width: 1000px) {
+  body.nochar .inv { grid-template-columns: auto minmax(380px, 560px); justify-content: center; gap: 48px; }
+}
