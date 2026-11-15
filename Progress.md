@@ -15,6 +15,7 @@
 
 ## Open
 - [x] GitHub repo misterwtheface-oss/mcd2-companion, Pages from main root (auto-deploys on push)
+- [ ] Effect pools still use the wiki model (category + archetype + element groups, + Utility for armor); extract PROCEDURAL_MAP 13 reads one group per item; awaiting the user's in-game check
 - [ ] Headline Item Power aggregation (`EItemPowerCategory::Total`, GetPlayerItemPower `0x146155280` -> `0x14617ceb0`,
       category -> attribute map `0x146179e30`); app shows the average of equipped items
 - [ ] Effect stacking for the totals panel (EffectTotal text uses attribute value + Offset); app shows the sum
