@@ -44,7 +44,7 @@ function load() {
 function save() {
   const j = JSON.stringify(S);
   localStorage.setItem('mcd2.build', j);
-  history.replaceState(null, '', '#b=' + btoa(encodeURIComponent(j)));
+  history.replaceState(history.state, '', '#b=' + btoa(encodeURIComponent(j)));  // keep the menu entry's state
 }
 
 // ---------------------------------------------------------------- numbers + text (game NumberToTextFormattingData)
@@ -322,12 +322,37 @@ function overlay(title, body, opts = {}) {
     <h3>${esc(title)}</h3><button class="x" data-act="close" aria-label="Close">×</button></div><div class="ovbody">${body}</div></div>`;
   if (opts.keepScroll) ov.querySelector('.ovbody').scrollTop = keep;
 }
-function push(fn) { ovStack.push(fn); fn(); }
-function closeOv() { ovStack = []; $('#ov').hidden = true; $('#ov').innerHTML = ''; }
-function back() { ovStack.pop(); const f = ovStack[ovStack.length - 1]; f ? f() : closeOv(); }
+// Menus and history: every open menu level is one history entry, so the device / browser back button (and Esc, and
+// the in-menu back) steps back one menu at a time; with no menu open, back is ordinary page history.
+let skipPops = 0;  // popstates caused by our own history.go() unwinding
+function hideOv() { $('#ov').hidden = true; $('#ov').innerHTML = ''; }
+function push(fn) { ovStack.push(fn); history.pushState({ mcd2Menu: ovStack.length }, ''); fn(); }
+function back() { if (ovStack.length) history.back(); }  // the popstate handler pops the level
+function closeOv() {  // close every level and drop their history entries
+  const n = ovStack.length;
+  ovStack = [];
+  hideOv();
+  if (n) { skipPops++; history.go(-n); }
+}
+function openFresh(fn) {  // start a new menu chain, reusing the first open level's history entry
+  const n = ovStack.length;
+  if (!n) return push(fn);
+  ovStack = [fn];
+  fn();
+  if (n > 1) { skipPops++; history.go(-(n - 1)); }
+}
+function replaceTop(fn) { ovStack[ovStack.length - 1] = fn; fn(); }  // same depth, same history entry
+window.addEventListener('popstate', () => {
+  if (skipPops) { skipPops--; return; }
+  if (!ovStack.length) return;  // base screen: ordinary history navigation
+  ovStack.pop();
+  const f = ovStack[ovStack.length - 1];
+  f ? f() : hideOv();
+});
+if (history.state?.mcd2Menu) history.replaceState(null, '');  // reload inside a menu: start on the base screen
 const sheetOpen = () => ovStack[0] === sheet;
 function sheet() { overlay(D.slotLabel[SLOT[focus]?.kind] || '', tooltipHTML(focus, true), { cls: 'sheet', keepScroll: true }); }
-function openSheet(refresh) { if (refresh) { const f = ovStack[ovStack.length - 1]; f && f(); return; } ovStack = []; push(sheet); }
+function openSheet(refresh) { if (refresh) { const f = ovStack[ovStack.length - 1]; f && f(); return; } openFresh(sheet); }
 
 // item picker: the category grid the game opens from a slot
 function picker(key) {
@@ -460,8 +485,11 @@ function equip(id) {
   const it = ITEM[id];
   const rar = it.k === 'talisman' ? null : it.u ? 'Unique' : (S.gear[focus]?.rar && S.gear[focus].rar !== 'Unique' ? S.gear[focus].rar : 'Rare');
   S.gear[focus] = it.k === 'talisman' ? { id, lv: 1 } : { id, rar, ip: defaultIP(rar), fx: [] };
-  save(); closeOv(); renderAll();
-  if (!isDesktop()) openSheet();
+  save();
+  if (isDesktop()) { closeOv(); renderAll(); return; }
+  renderAll();
+  if (ovStack.length > 1 && ovStack[0] === sheet) back();  // came from the sheet's Change: back to the sheet
+  else replaceTop(sheet);  // came from an empty slot: the picker becomes the item sheet
 }
 document.addEventListener('click', ev => {
   const fl = ev.target.closest('.flag');
@@ -475,16 +503,16 @@ document.addEventListener('click', ev => {
     return;
   }
   const a = ev.target.closest('[data-act]');
-  if (!a) { if (ev.target.id === 'ov') closeOv(); return; }
+  if (!a) { if (ev.target.id === 'ov') closeOv(); return; }  // backdrop
   const d = a.dataset, g = S.gear[focus];
   switch (d.act) {
     case 'close': closeOv(); break;
     case 'back': back(); break;
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
-    case 'totals': ovStack = []; push(totals); break;
+    case 'totals': openFresh(totals); break;
     case 'totf': totFilter = d.f; totals(); break;
-    case 'flags': ovStack = []; push(flagsView); break;
-    case 'skin': ovStack = []; push(skinPicker); break;
+    case 'flags': openFresh(flagsView); break;
+    case 'skin': openFresh(skinPicker); break;
     case 'setskin': S.skin = d.id; save(); closeOv(); renderChar(); break;
     case 'equip': equip(d.id); break;
     case 'change': push(() => picker(focus)); break;

@@ -8,6 +8,7 @@
 - Every base item with a unique twin (all weapons and armor; artifacts and talismans have none) lists once, as the unique; the panel's rarity row swaps between base and unique (Common-Special = base, Unique = unique; data link UniqueSubstitution).
 - Weapon Stats (collapsible, below the tooltip): melee per combo step (damage, hit time, step time, speed multiplier), combo damage / time / damage per second, reach, splash, jump attack, combo reset, on-hit statuses; ranged shot interval, arrows, damage factor, charge, ammo, reload. Speed decoded (extract PROCEDURAL_MAP 11) and follows equipped Swiftness / Reload. Level cap 100 from DT_PlayerDefinition LevelMax.
 - Picker = list of tiles: slot art, name, built-in effect / enchantment, key numbers (melee combo damage, hits, time, DPS; ranged shot interval, damage factor, arrows, ammo; artifact description, cooldown, souls). Descriptions fill every placeholder ({1}+ from ability key values); enchantments whose number is the level magnitude use the I / II / III values.
+- Back button: every open menu level is a history entry (device / browser back, Esc, in-menu ‹ step back one level; close / backdrop drop all levels); on the base screen back is normal page history. Verified with tools/app/flow.py (base screen = history entry 0).
 - Mobile first: phone = stacked band / character / grid, tooltip as bottom sheet; >= 1000 px = the game's 3 columns.
 
 ## Open
