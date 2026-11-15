@@ -200,3 +200,15 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 /* rarity moved the item to its base / unique: cross-fade icon, name and description in place */
 .swap { animation: swap .32s ease-out; }
 @keyframes swap { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+
+/* weapon stats (app-added; below the game's tooltip content) */
+.wstats { border-top: 1px solid #ffffff1a; padding-top: 8px; }
+.wstats summary { cursor: pointer; font: 17px var(--f-head); color: var(--sub2); list-style: none; }
+.wstats summary::before { content: '▸ '; color: var(--sub); }
+.wstats[open] summary::before { content: '▾ '; }
+.wstats table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+.wstats th { font: 600 11px var(--f-body); color: var(--sub); text-transform: uppercase; text-align: left; padding: 3px 4px; border-bottom: 1px solid #ffffff1a; }
+.wstats td { padding: 4px; color: var(--txt); font: 15px var(--f-head); border-bottom: 1px solid #ffffff0d; }
+.wstats td small { font: 11px var(--f-body); color: var(--sub); }
+.kv { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; color: var(--sub); }
+.kv b { font: 16px var(--f-head); color: var(--txt); margin-left: auto; }

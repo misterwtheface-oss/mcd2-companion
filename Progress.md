@@ -6,6 +6,7 @@
 - Data: 296 items (58 melee, 22 ranged, 152 armor, 40 artifacts, 24 talismans), 51 distinct effect pools,
   302 effect templates, 40 enchantments (9 unique built-ins), 28 skins. Build: 0 errors.
 - Every base item with a unique twin (all weapons and armor; artifacts and talismans have none) lists once, as the unique; the panel's rarity row swaps between base and unique (Common-Special = base, Unique = unique; data link UniqueSubstitution).
+- Weapon Stats (collapsible, below the tooltip): melee per combo step (damage, hit time, step time, speed multiplier), combo damage / time / damage per second, reach, splash, jump attack, combo reset, on-hit statuses; ranged shot interval, arrows, damage factor, charge, ammo, reload. Speed decoded (extract PROCEDURAL_MAP 11) and follows equipped Swiftness / Reload. Level cap 100 from DT_PlayerDefinition LevelMax.
 - Mobile first: phone = stacked band / character / grid, tooltip as bottom sheet; >= 1000 px = the game's 3 columns.
 
 ## Open
@@ -14,5 +15,6 @@
       category -> attribute map `0x146179e30`); app shows the average of equipped items
 - [ ] Effect stacking for the totals panel (EffectTotal text uses attribute value + Offset); app shows the sum
 - [ ] Enchantment level I-III scaling and per-gear applicability
-- [ ] Armor base protection by weight class; weapon damage / item-power factor (PROCEDURAL_MAP 8) in a stats view
+- [ ] Armor base protection by weight class; item-power factor on weapon damage (PROCEDURAL_MAP 8, needs threat)
+- [ ] Arrow base damage (not in data); queued-attack cancel timing in combos; Short Spear has 3 hits but 2 animation sections
 - [ ] Cosmetics (cape, pet) live on a separate game screen; potion slot only on the HUD

@@ -239,6 +239,9 @@ def ensure_effect(etag):
         ICONLESS.add(etag)
     eff_out[etag] = {'n': e['name'], 'd': e['desc'], 'i': ver(icon), 'f': fmt_of(etag),
                      'c': effect_category(etag), 'lb': e.get('lower_is_better', False)}
+    for m in e.get('modifiers') or []:  # effects that add to the attack-speed attributes (PROCEDURAL_MAP 11)
+        if m['op'] == 'AddBase' and m['attribute'] in ('ATR_MeleeAttack:MeleeAttackSpeed', 'ATR_RangedAttack:RangedAttackSpeed'):
+            eff_out[etag]['spd'] = 'melee' if 'Melee' in m['attribute'] else 'ranged'
     return etag
 
 
@@ -306,10 +309,76 @@ def pool_for(item_tag, traits, tagset):
     return out
 
 
+
+# ---------------------------------------------------------------- weapon stats (PROCEDURAL_MAP 11: speed = rate on the combo montage)
+JSON = os.path.join(X, 'data', 'json')
+
+
+def montage(path):
+    """Combo montage -> [(section, start, end)] by LinkValue (montage seconds) + AN_MeleeAttack hit times."""
+    if not path or not path.startswith('/Game/'):
+        return None
+    f = os.path.join(JSON, 'Dungeons', 'Content', path.split('.')[0][len('/Game/'):] + '.json')
+    if not os.path.isfile(f):
+        errors.append(f'montage json missing: {path}')
+        return None
+    a = next(o for o in load(f) if o.get('Type') == 'AnimMontage')['Properties']
+    secs = sorted((s['LinkValue'], s['SectionName']) for s in a.get('CompositeSections', []))
+    length = a['SequenceLength']
+    out = [(n, st, secs[i + 1][0] if i + 1 < len(secs) else length) for i, (st, n) in enumerate(secs)]
+    hits = sorted(n['LinkValue'] for n in a.get('Notifies', []) if n.get('NotifyName') == 'AN_MeleeAttack')
+    return out, hits
+
+
+def r2(x):
+    return round(x, 3)
+
+
+def melee_stats(tag):
+    f = facet_of(tag, 'DT_MeleePropertyDefinition')
+    var = (f.get('AttackVariants') or {}).get('Variants') or []
+    mt = montage(f.get('Montage'))
+    if not var or not mt:
+        return None
+    secs, hits = mt
+    steps = []
+    for i, v in enumerate(var):
+        sec = secs[i] if i < len(secs) else None
+        st = {'d': v['Damage'], 'n': v.get('VariantLoopAmount', 1), 'sg': v['Stagger'], 'x': v['AttackSpeedMultiplier'],
+              'rg': v['AttackRange'], 'cone': v['ConeAngleDegrees'], 'spl': v['DamageSplashMultiplier'],
+              'kb': (v.get('Knockback') or {}).get('Strength'), 'w': v.get('AttackWeight'),
+              'dt': (v.get('DamageType') or {}).get('TagName', '').split('.')[-1]}
+        stat = [t['TagName'].split('.')[-1] for t in ((v.get('StatusToApplyToTargetOnHit') or {}).get('GameplayTags') or [])]
+        if stat:
+            st['st'] = stat
+        if sec:
+            st['t'] = r2(sec[2] - sec[1])  # step length at rate 1
+            st['h'] = [r2(h - sec[1]) for h in hits if sec[1] <= h < sec[2]]  # hit notifies inside the step
+        steps.append(st)
+    j = f.get('JumpAttackDefinition') or {}
+    kv = kv_named(f)
+    out = {'steps': steps, 'reset': kv.get('AttackVariantsResetSeconds')}
+    if j:
+        out['jump'] = {'d': j.get('Damage'), 'sg': j.get('Stagger'), 'aoe': j.get('AreaOfEffectSplashRange')}
+    if len(secs) != len(var):
+        out['mismatch'] = [len(var), len(secs)]
+    return out
+
+
+def ranged_stats(tag):
+    a = (facet_of(tag, 'DT_RangedPropertyDefinition') or {}).get('AttackDefintion') or {}
+    if not a:
+        return None
+    arrows = sum(p.get('NumberOfProjectiles', 1) for vol in a.get('VolleyDefinitions', [])
+                 for p in vol.get('ProjectileDefinitions', []))
+    return {'rate': a['AttackRateSeconds'], 'ammo': a['MaxAmmo'], 'rel': a['RechargeTimeSeconds'],
+            'chg': a['ChargeTimeSecond'], 'chgReq': a['ChargeRequired'], 'chgx': a['ChargeDamageMultiplier'],
+            'dmgx': a['ProjectileDamageFactor'], 'arrows': arrows, 'rg': a['Range'], 'jump': a['JumpshotDamageMultiplier']}
+
 # ---------------------------------------------------------------- items
 SLOT_KIND = {'SW.Item.Property.Armor.Helmet': 'helmet', 'SW.Item.Property.Armor.Chest': 'chest',
              'SW.Item.Property.Armor.Leggings': 'legs', 'SW.Item.Property.Armor.Boots': 'boots'}
-items, pools, pool_ix, skipped = [], [], {}, []
+items, pools, pool_ix, skipped, MISMATCH = [], [], {}, [], []
 
 
 def facet_of(tag, table):
@@ -361,6 +430,16 @@ def add_items(cat, table):
         aset = [t for t in traits if t.startswith('SW.Item.ArmorSet.')]
         if aset:
             rec['set'] = aset[0].split('.')[-1]
+        if cat == 'melee':
+            ms = melee_stats(tag)
+            if ms:
+                rec['ms'] = ms
+                if 'mismatch' in ms:
+                    MISMATCH.append(tag)
+        if cat == 'ranged':
+            rs = ranged_stats(tag)
+            if rs:
+                rec['rs'] = rs
         if cat == 'artifact':
             if 'CooldownDuration' in kv:
                 rec['cd'] = kv['CooldownDuration']
@@ -509,6 +588,14 @@ ui_art = {
     'talLevel': ui('Plugins/OreUI/Content/UI/Widget/Tooltip/Modules/T_UI_TalismanLevel.png', 'talisman_level'),
     'cat': cat_icon, 'empty': empty,
 }
+flag('stats', 'Swing times use the decoded speed rule (combo animation played at attack speed x the hit speed '
+     'multiplier) with each combo step timed from its animation section start to the next; whether a queued attack '
+     'cuts a step short is not decoded yet.')
+flag('stats', 'Arrow base damage is not in the game data; ranged weapons compare by damage factor, charged-shot '
+     'multiplier and fire rate.')
+if MISMATCH:
+    flag('stats', 'Combo hits and animation sections do not line up one-to-one for these weapons; extra strikes inside a '
+         'step are shown but how they share damage is not decoded yet.', MISMATCH)
 flag('ui', 'The item-power icon, slot glow, rarity slot fill and tooltip frame are drawn by in-game shaders with no image '
      'file; the app redraws them from the shader colours.')
 flag('ui', 'The game shows a live 3D character here; the app uses the skin\'s 2D pose image instead.')
@@ -598,11 +685,29 @@ if skipped:
     flag('item', 'Internal base rows without a name are left out', sorted(skipped))
 
 const = ROLLS['item_creator_constants']['SW.GameplayRuleSet.SecondPass']
+def player_attr(name):
+    """Default player attribute value from DT_PlayerDefinition (any {Attribute, Value} list in the row)."""
+    stack = [ENT['SW.Player']['facets'].get('DT_PlayerDefinition', {})]
+    while stack:
+        o = stack.pop()
+        if isinstance(o, dict):
+            at = o.get('Attribute')
+            if isinstance(at, dict) and at.get('TagName') == name and 'Value' in o:
+                return o['Value']
+            stack.extend(o.values())
+        elif isinstance(o, list):
+            stack.extend(o)
+    return None
+
+
+LEVEL_MAX = player_attr('SW.Attribute.LevelMax')
+if LEVEL_MAX is None:
+    errors.append('SW.Attribute.LevelMax not found in DT_PlayerDefinition')
 out = {
     'ui': ui_text, 'art': ui_art, 'fonts': fonts, 'sections': sections, 'slotLabel': SLOT_LABEL,
     'rarities': rar, 'items': items, 'pools': pools, 'templates': tpl_out, 'effects': eff_out,
     'enchantments': ench, 'skins': skins, 'flags': flags,
-    'rules': {'maxEffects': const['NumberOfEffectsMax'], 'ipPerLevel': 1.5},
+    'rules': {'maxEffects': const['NumberOfEffectsMax'], 'ipPerLevel': 1.5, 'levelMax': LEVEL_MAX},
 }
 for p in walk_paths(out):
     if not os.path.isfile(os.path.join(APP, p.split('?')[0])):

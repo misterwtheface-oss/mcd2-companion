@@ -123,7 +123,7 @@ function renderStats() {
   $('#stats').innerHTML = `
     <div class="st lvl"><h3>${esc(UI.header_level)}</h3>
       <div class="lvlnum"><button data-act="lvl" data-d="-1" aria-label="Level down">‹</button>
-      <input id="lvl" type="number" inputmode="numeric" min="1" max="200" value="${S.level}">
+      <input id="lvl" type="number" inputmode="numeric" min="1" max="${D.rules.levelMax}" value="${S.level}">
       <button data-act="lvl" data-d="1" aria-label="Level up">›</button></div></div>
     <div class="st pow"><h3>${esc(UI.header_gear_power)}</h3>
       <div class="ipbig"><span class="ipicon" aria-hidden="true"></span><span>${ip.total ?? '–'}</span>${flagMark('stats', 'headline')}</div>
@@ -165,6 +165,70 @@ function renderGear() {
       <div class="row">${SLOTS.filter(s => s.section === sec.id)
         .map(s => slotHTML(s.key, S.gear[s.key], focus === s.key ? 'aria-current="true"' : '')).join('')}</div></div>`).join('');
 }
+
+// ---------------------------------------------------------------- weapon stats (PROCEDURAL_MAP 11)
+// melee: combo montage plays at MeleeAttackSpeed x the step's AttackSpeedMultiplier; ranged: shot interval =
+// max(AttackRateSeconds / max(RangedAttackSpeed, 0.01), 0.05). Both attributes start at 1; Swiftness / Reload add to them.
+function attackSpeed(kind) {
+  let v = 1;
+  for (const s of SLOTS) {
+    const g = S.gear[s.key];
+    if (!g || !ITEM[g.id]) continue;
+    for (const { tpl } of gearEffects(g)) {
+      const t = D.templates[tpl];
+      if (D.effects[t.e].spd === kind) v += tplValue(t) || 0;
+    }
+  }
+  return v;
+}
+const num = (x, d = 2) => (+x.toFixed(d)).toString();
+function statsHTML(it) {
+  if (it.ms) {
+    const spd = attackSpeed('melee');
+    let dmg = 0, time = 0;
+    const rows = it.ms.steps.map((st, i) => {
+      const rate = spd * st.x;
+      const d = st.d * st.n;
+      dmg += d;
+      if (st.t != null) time += st.t / rate;
+      const hits = (st.h || []).map(h => num(h / rate)).join(' · ') || '–';
+      return `<tr><td>${i + 1}</td><td>${st.d}${st.n > 1 ? `×${st.n}` : ''}${st.h && st.h.length > 1 ? `<small> ×${st.h.length}</small>` : ''}</td>
+        <td>${hits}</td><td>${st.t != null ? num(st.t / rate) : '?'}</td><td>×${num(st.x)}</td></tr>`;
+    }).join('');
+    const top = it.ms.steps.reduce((m, st) => st.rg > m.rg ? st : m, it.ms.steps[0]);
+    const extra = [...new Set(it.ms.steps.flatMap(st => [st.dt !== 'Melee' ? st.dt : null, ...(st.st || [])]).filter(Boolean))];
+    return `<details class="wstats"><summary>Stats</summary>
+      <div class="kv"><span>Attack speed</span><b>×${num(spd)}</b></div>
+      <table><thead><tr><th>#</th><th>Damage</th><th>Hit (s)</th><th>Step (s)</th><th>Speed</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="kv"><span>Combo damage</span><b>${dmg}</b></div>
+      <div class="kv"><span>Combo time</span><b>${num(time)} s</b></div>
+      <div class="kv"><span>Damage / s</span><b>${time ? num(dmg / time, 1) : '?'}</b>${flagMark('stats', 'Swing times')}</div>
+      <div class="kv"><span>Reach</span><b>${top.rg}</b></div>
+      <div class="kv"><span>Splash</span><b>${Math.round(it.ms.steps[0].spl * 100)}%</b></div>
+      ${it.ms.jump ? `<div class="kv"><span>Jump attack</span><b>${it.ms.jump.d}</b></div>` : ''}
+      ${it.ms.reset ? `<div class="kv"><span>Combo reset</span><b>${num(it.ms.reset)} s</b></div>` : ''}
+      ${extra.length ? `<div class="kv"><span>On hit</span><b>${extra.map(esc).join(', ')}</b></div>` : ''}
+      ${it.ms.mismatch ? flagMark('stats', 'line up') : ''}</details>`;
+  }
+  if (it.rs) {
+    const r = it.rs, spd = attackSpeed('ranged');
+    const interval = Math.max(r.rate / Math.max(spd, 0.01), 0.05);
+    return `<details class="wstats"><summary>Stats</summary>
+      <div class="kv"><span>Attack speed</span><b>×${num(spd)}</b></div>
+      <div class="kv"><span>Time between shots</span><b>${num(interval)} s</b></div>
+      <div class="kv"><span>Shots / s</span><b>${num(1 / interval, 1)}</b></div>
+      <div class="kv"><span>Arrows per shot</span><b>${r.arrows}</b></div>
+      <div class="kv"><span>Damage factor</span><b>×${num(r.dmgx)}</b>${flagMark('stats', 'Arrow base damage')}</div>
+      <div class="kv"><span>Charge time</span><b>${r.chg ? num(r.chg) + ' s' : '–'}</b></div>
+      <div class="kv"><span>Charged shot</span><b>×${num(r.chgx)}</b></div>
+      <div class="kv"><span>Ammo</span><b>${r.ammo}</b></div>
+      <div class="kv"><span>Reload</span><b>${num(r.rel)} s</b></div>
+      <div class="kv"><span>Jump shot</span><b>×${num(r.jump)}</b></div></details>`;
+  }
+  return '';
+}
+let statsOpen = false;
+document.addEventListener('toggle', ev => { if (ev.target.classList?.contains('wstats')) statsOpen = ev.target.open; }, true);
 
 // ---------------------------------------------------------------- tooltip (W_Tooltip) — read-only in hover, editable when focused
 function tooltipHTML(key, editable) {
@@ -217,6 +281,7 @@ function tooltipHTML(key, editable) {
     <div class="lower">
       ${it.d ? `<p class="desc">${esc(it.d)}</p>` : ''}
       ${enchHTML}${effects}
+      ${statsHTML(it).replace('<details class="wstats">', `<details class="wstats"${statsOpen ? ' open' : ''}>`)}
       ${editable ? `<div class="acts"><button class="btn" data-act="change">Change</button><button class="btn ghost" data-act="remove">Remove</button></div>` : ''}
     </div></div>`;
 }
@@ -377,7 +442,7 @@ document.addEventListener('click', ev => {
   switch (d.act) {
     case 'close': closeOv(); break;
     case 'back': back(); break;
-    case 'lvl': S.level = Math.max(1, Math.min(200, S.level + +d.d)); save(); renderStats(); break;
+    case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
     case 'totals': ovStack = []; push(totals); break;
     case 'totf': totFilter = d.f; totals(); break;
     case 'flags': ovStack = []; push(flagsView); break;
@@ -397,7 +462,7 @@ document.addEventListener('click', ev => {
   }
 });
 document.addEventListener('change', ev => {
-  if (ev.target.id === 'lvl') { S.level = Math.max(1, Math.min(200, +ev.target.value || 1)); save(); renderStats(); }
+  if (ev.target.id === 'lvl') { S.level = Math.max(1, Math.min(D.rules.levelMax, +ev.target.value || 1)); save(); renderStats(); }
   if (ev.target.id === 'ipin' && S.gear[focus]) { S.gear[focus].ip = Math.max(1, Math.min(999, +ev.target.value || 1)); save(); renderAll(); }
 });
 document.addEventListener('mouseover', ev => {  // desktop: hovering a slot previews it in the tooltip column, like the game
