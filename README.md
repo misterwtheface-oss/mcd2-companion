@@ -1,4 +1,4 @@
-# MCD2 Loadout Builder
+# MCD2 Companion: loadout builder
 
 A loadout builder for **Minecraft Dungeons II** that rebuilds the game's own inventory overview screen: level and item
 power band on top, character on the left, the slot grid (Weapons, Armor, Artifacts, Talismans) in the middle and the

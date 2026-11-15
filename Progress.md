@@ -8,7 +8,7 @@
 - Mobile first: phone = stacked band / character / grid, tooltip as bottom sheet; >= 1000 px = the game's 3 columns.
 
 ## Open
-- [ ] GitHub repo + Pages deploy (repo name to confirm with the user)
+- [x] GitHub repo misterwtheface-oss/mcd2-companion, Pages from main root (auto-deploys on push)
 - [ ] Headline Item Power aggregation (`EItemPowerCategory::Total`, GetPlayerItemPower `0x146155280` -> `0x14617ceb0`,
       category -> attribute map `0x146179e30`); app shows the average of equipped items
 - [ ] Effect stacking for the totals panel (EffectTotal text uses attribute value + Offset); app shows the sum
