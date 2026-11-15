@@ -147,6 +147,37 @@ def fmt_of(tag, entry='SW.TextEntry.Description'):
     return None
 
 
+def fmt_one(v, getter):
+    return {'pct': v['IsPercentage'], 'sign': v['AlwaysSign'], 'mul': v['Multiplier'], 'off': v['Offset'],
+            'minf': v['MinFractionalDigits'], 'maxf': v['MaxFractionalDigits'], 'get': getter.split('.')[-1],
+            'key': v['extract_from']}
+
+
+def extra_values(tag, entry='SW.TextEntry.Description', start=1):
+    """Placeholders {start..n} of a description: [value or None, format]. Values come from the ability key values when the
+    text getter is GetAbilityKeyValues (PROCEDURAL_MAP 10); other getters read live state and stay None (flagged)."""
+    tt = LABELS['text_templates']
+    for t in [tag] + list(parents(tag)):
+        e = (tt.get(t) or {}).get(entry)
+        if e and e.get('values'):
+            out = []
+            for v in e['values'][start:]:
+                val = None
+                if e['getter'].endswith('GetAbilityKeyValues'):
+                    short = v['extract_from'].replace('SW.KeyValue.', '')
+                    for src in [tag] + parents(tag):
+                        for ab in (EFFECTS.get(src) or {}).get('abilities') or []:
+                            kv_ = {**(ab.get('common') or {}), **(ab.get('specific') or {})}
+                            if short in kv_:
+                                val = kv_[short]
+                                break
+                        if val is not None:
+                            break
+                out.append([val, fmt_one(v, e['getter'])])
+            return out
+    return []
+
+
 def label(tag):
     v = LABELS['labels'].get(tag)
     if not v:
@@ -225,6 +256,7 @@ def effect_category(etag):
 
 eff_out, tpl_out = {}, {}
 ICONLESS = set()
+UNFILLED = set()  # descriptions with a second number the data cannot supply
 
 
 def ensure_effect(etag):
@@ -239,6 +271,10 @@ def ensure_effect(etag):
         ICONLESS.add(etag)
     eff_out[etag] = {'n': e['name'], 'd': e['desc'], 'i': ver(icon), 'f': fmt_of(etag),
                      'c': effect_category(etag), 'lb': e.get('lower_is_better', False)}
+    if '{1}' in (e['desc'] or ''):
+        eff_out[etag]['p'] = extra_values(etag)
+        if any(v is None for v, _ in eff_out[etag]['p']):
+            UNFILLED.add(etag)
     for m in e.get('modifiers') or []:  # effects that add to the attack-speed attributes (PROCEDURAL_MAP 11)
         if m['op'] == 'AddBase' and m['attribute'] in ('ATR_MeleeAttack:MeleeAttackSpeed', 'ATR_RangedAttack:RangedAttackSpeed'):
             eff_out[etag]['spd'] = 'melee' if 'Melee' in m['attribute'] else 'ranged'
@@ -494,8 +530,9 @@ def ensure_ench(tag, unique=False):
         short = f['key'].replace('SW.KeyValue.', '')
         for src in [tag] + parents(tag):
             for ab in (EFFECTS.get(src) or {}).get('abilities') or []:
-                if short in (ab.get('specific') or {}):
-                    val = ab['specific'][short]
+                kv_ = {**(ab.get('common') or {}), **(ab.get('specific') or {})}
+                if short in kv_:
+                    val = kv_[short]
                     break
             if val is not None:
                 break
@@ -505,6 +542,19 @@ def ensure_ench(tag, unique=False):
     tiers = [t for t in e.get('tiers') or [] if re.search(r'\.(I|II|III)$', t)]
     ench[tag] = {'n': e['name'], 'd': e['desc'], 'dl': e['texts'].get('SW.TextEntry.Description.Long'),
                  'i': ver(icon), 'f': f, 'v': val, 'c': effect_category(tag), 'tiers': len(tiers) or 3}
+    if f and f['get'] == 'GetEffectMagnitude':
+        # {0} = the enchantment effect's magnitude = FixedEffectValue of the level row (I / II / III, or the unique row)
+        rows = tiers if not unique else [tag]
+        tmpl = [(EFFECTS.get(t) or {}).get('template') or {} for t in rows]
+        if rows and all(t.get('HasFixedEffectValue') for t in tmpl):
+            ench[tag]['tv'] = [t['FixedEffectValue'] for t in tmpl]
+            val = ench[tag]['v'] = ench[tag]['tv'][0]
+    if val is None and '{0}' in (e['desc'] or ''):
+        UNFILLED.add(tag)
+    if '{1}' in (e['desc'] or ''):
+        ench[tag]['p'] = extra_values(tag)
+        if any(v is None for v, _ in ench[tag]['p']):
+            UNFILLED.add(tag)
     if unique:
         ench[tag]['u'] = 1
     return tag
@@ -538,8 +588,10 @@ for r in items:
 
 flag('enchantment', 'Which gear each enchantment can go on is not decoded yet; the builder allows any enchantment on any '
      'weapon, armor piece or artifact.')
-flag('enchantment', 'How an enchantment grows from level I to III is not decoded yet; the number shown is the game\'s '
-     'base value for every level.')
+flag('enchantment', 'Enchantments whose number comes from their ability (e.g. Fire Aspect, Ender Mines) show the base value '
+     'at every level; how those grow from I to III is not decoded yet. Enchantments whose number is the level value '
+     '(e.g. Piercing 1 / 3 / 5) are exact. Built-in enchantments on uniques that read the ability (e.g. Dynamo on Double '
+     'Crossers) show the ability base value; their unique-level value is in the data but not confirmed to replace it.')
 
 # ---------------------------------------------------------------- rarities
 COLOR_ROWS = {r['Name']: r['Color'] for r in load(UFS, 'DT_UIColorToken.json')}
@@ -679,6 +731,8 @@ def walk_paths(o):
         yield o
 
 
+if UNFILLED:
+    flag('text', 'A number in these descriptions is read from live game state, not from data; shown as ?', sorted(UNFILLED))
 if ICONLESS:
     flag('effect', 'No icon in the game files', sorted(ICONLESS))
 if skipped:

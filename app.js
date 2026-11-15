@@ -63,7 +63,12 @@ function fmtNum(v, f) {
   }
   return (f.sign && x > 0 ? '+' : '') + s + (f.pct ? '%' : '');
 }
-const fill = (text, val) => esc(text || '').replace('{0}', `<b>${esc(val)}</b>`);
+// {0} = the given value, {1..n} = the entry's extra placeholders (p: [[value | null, format]])
+const fill = (text, val, extra) => esc(text || '').replace(/\{(\d+)\}/g, (m, i) => {
+  if (+i === 0) return `<b>${esc(val)}</b>`;
+  const x = extra?.[i - 1];
+  return `<b>${x ? esc(fmtNum(x[0], x[1])) : '?'}</b>`;
+});
 const tplValue = t => t.v ?? (t.r ? t.r[1] : null);
 function tplName(id) {
   const t = D.templates[id], e = D.effects[t.e];
@@ -71,12 +76,13 @@ function tplName(id) {
 }
 function tplDesc(id) {
   const t = D.templates[id], e = D.effects[t.e];
-  return fill(e.d, fmtNum(tplValue(t), e.f));
+  return fill(e.d, fmtNum(tplValue(t), e.f), e.p);
 }
-function enchDesc(id) {
+function enchDesc(id, lvl = 1) {  // tv = per-level values (I / II / III) when the number is the level's magnitude
   const e = D.enchantments[id];
   if (!e.d.includes('{0}')) return esc(e.d);
-  return e.v == null ? fill(e.d, '?') : fill(e.d, fmtNum(e.v, e.f));
+  const v = e.tv ? e.tv[Math.min(lvl, e.tv.length) - 1] : e.v;
+  return fill(e.d, v == null ? '?' : fmtNum(v, e.f), e.p);
 }
 
 // ---------------------------------------------------------------- derived values
@@ -182,15 +188,21 @@ function attackSpeed(kind) {
   return v;
 }
 const num = (x, d = 2) => (+x.toFixed(d)).toString();
+function meleeTotals(it, spd) {  // combo damage and time at attack speed `spd` (one implementation: tiles + Stats)
+  let dmg = 0, time = 0;
+  for (const st of it.ms.steps) {
+    dmg += st.d * st.n;
+    if (st.t != null) time += st.t / (spd * st.x);
+  }
+  return { dmg, time, dps: time ? dmg / time : null };
+}
+const shotInterval = (r, spd) => Math.max(r.rate / Math.max(spd, 0.01), 0.05);
 function statsHTML(it) {
   if (it.ms) {
     const spd = attackSpeed('melee');
-    let dmg = 0, time = 0;
+    const { dmg, time } = meleeTotals(it, spd);
     const rows = it.ms.steps.map((st, i) => {
       const rate = spd * st.x;
-      const d = st.d * st.n;
-      dmg += d;
-      if (st.t != null) time += st.t / rate;
       const hits = (st.h || []).map(h => num(h / rate)).join(' · ') || '–';
       return `<tr><td>${i + 1}</td><td>${st.d}${st.n > 1 ? `×${st.n}` : ''}${st.h && st.h.length > 1 ? `<small> ×${st.h.length}</small>` : ''}</td>
         <td>${hits}</td><td>${st.t != null ? num(st.t / rate) : '?'}</td><td>×${num(st.x)}</td></tr>`;
@@ -212,7 +224,7 @@ function statsHTML(it) {
   }
   if (it.rs) {
     const r = it.rs, spd = attackSpeed('ranged');
-    const interval = Math.max(r.rate / Math.max(spd, 0.01), 0.05);
+    const interval = shotInterval(r, spd);
     return `<details class="wstats"><summary>Stats</summary>
       <div class="kv"><span>Attack speed</span><b>×${num(spd)}</b></div>
       <div class="kv"><span>Time between shots</span><b>${num(interval)} s</b></div>
@@ -259,7 +271,7 @@ function tooltipHTML(key, editable) {
   const en = enId && D.enchantments[enId];
   const enchHTML = en ? `<div class="ench${editable && !it.ue ? ' edit' : ''}" ${editable && !it.ue ? 'data-act="pickench"' : ''}>
       <span class="effic"><img src="${en.i}" alt=""></span>
-      <div><h5>${esc(en.n)}${it.ue ? '' : ' ' + TIER_NUM[(g.enl || 1) - 1]}</h5><p>${enchDesc(enId)}</p>${it.ue ? '' : flagMark('enchantment', 'level')}</div></div>`
+      <div><h5>${esc(en.n)}${it.ue ? '' : ' ' + TIER_NUM[(g.enl || 1) - 1]}</h5><p>${enchDesc(enId, it.ue ? 1 : (g.enl || 1))}</p>${en.tv || !en.d.includes('{0}') ? '' : flagMark('enchantment', 'ability')}</div></div>`
     : editable && !tal ? `<button class="ench add" data-act="pickench"><span class="effic"><img src="${D.art.enchSwirl}" alt=""></span><div><h5>${esc(UI.Label_Enchantment || 'Enchantment')}</h5></div></button>` : '';
   const rarBadge = rar ? `<span class="rtag" style="--rc:${rar.c}"><i style="-webkit-mask-image:url('${rar.badge}');mask-image:url('${rar.badge}')"></i>${esc(rar.n.toUpperCase())}</span>` : '';
   const paired = it.uq || it.base;  // base weapon <-> its unique: one entry, rarity decides which
@@ -324,7 +336,33 @@ function picker(key) {
   const list = D.items.filter(i => i.k === kind && !i.uq).sort((a, b) => a.u - b.u || a.n.localeCompare(b.n));
   const cur = S.gear[key]?.id && (ITEM[S.gear[key].id].uq || S.gear[key].id);
   overlay(D.slotLabel[kind] || D.sections.find(s => s.id === SLOT[key].section).n,
-    `<div class="pgrid">${list.map(it => `<div class="pcell">${cellHTML(it, null, `data-act="equip" data-id="${it.id}" ${it.id === cur ? 'aria-current="true"' : ''}`)}<span>${esc(it.n)}</span></div>`).join('')}</div>`, { keepScroll: true });
+    `<div class="tiles">${list.map(it => tileHTML(it, it.id === cur)).join('')}</div>`, { keepScroll: true });
+}
+// one picker tile: slot art, name, built-in (intrinsic) effect / enchantment, key numbers
+function tileHTML(it, current) {
+  const intr = [...(it.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff' })),
+    ...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench' }] : []),
+    ...(it.k === 'talisman' ? (it.lv[0]?.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff' })) : [])];
+  const chips = [];
+  if (it.ms) {
+    const m = meleeTotals(it, attackSpeed('melee'));
+    chips.push(['Combo', m.dmg], ['Hits', it.ms.steps.length], ['Time', num(m.time) + ' s'], ['DPS', m.dps ? num(m.dps, 1) : '?']);
+  }
+  if (it.rs) {
+    const iv = shotInterval(it.rs, attackSpeed('ranged'));
+    chips.push(['Shot', num(iv) + ' s'], ['Damage', '×' + num(it.rs.dmgx)]);
+    if (it.rs.arrows > 1) chips.push(['Arrows', it.rs.arrows]);
+    chips.push(['Ammo', it.rs.ammo]);
+  }
+  if (it.cd != null) chips.push(['Cooldown', num(it.cd) + ' s']);
+  if (it.soul) chips.push(['Souls', it.soul]);
+  return `<button class="tile" data-act="equip" data-id="${it.id}" ${current ? 'aria-current="true"' : ''}>
+    ${cellHTML(it, null, 'tabindex="-1" aria-hidden="true"').replace('<button', '<span').replace(/<\/button>$/, '</span>')}
+    <span class="tbody"><span class="tname">${esc(it.n)}</span>
+      ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span><b>${esc(x.n)}</b> ${x.d}</span></span>`).join('')}
+      ${it.k === 'artifact' && it.d ? `<span class="tfx">${esc(it.d)}</span>` : ''}
+      ${chips.length ? `<span class="chips">${chips.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join('')}</span>` : ''}
+    </span></button>`;
 }
 function fxPicker(i) {
   const g = S.gear[focus], it = ITEM[g.id];
@@ -347,7 +385,7 @@ function enchPicker() {
   const g = S.gear[focus];
   const list = Object.entries(D.enchantments).filter(([, e]) => !e.u).sort((a, b) => a[1].n.localeCompare(b[1].n));
   overlay(UI.header_enchantments || 'Enchantments', list.map(([id, e]) => `<div class="fxopt"><span class="effic"><img src="${e.i}" alt=""></span>
-    <div><h5>${esc(e.n)}</h5><p>${enchDesc(id)}</p><div class="tiers row">${TIER_NUM.slice(0, e.tiers).map((n, l) =>
+    <div><h5>${esc(e.n)}</h5><p>${enchDesc(id, g.en === id ? (g.enl || 1) : 1)}</p><div class="tiers row">${TIER_NUM.slice(0, e.tiers).map((n, l) =>
       `<button data-act="setench" data-id="${id}" data-l="${l + 1}" ${g.en === id && (g.enl || 1) === l + 1 ? 'aria-pressed="true"' : ''}><b>${n}</b></button>`).join('')}</div></div></div>`).join('')
     + (g.en ? `<button class="btn ghost wide" data-act="setench" data-id="">Remove</button>` : ''), { keepScroll: true });
 }
@@ -373,10 +411,10 @@ function totals() {
     if (x.kind === 'e') {
       const e = D.effects[x.id];
       return `<div class="eff"><span class="effic"><img class="fr" src="${D.art.effectFrame}" alt="">${e.i ? `<img src="${e.i}" alt="">` : ''}</span>
-        <div><h5>${esc(e.n)}<span class="tot">${fmtNum(x.v, e.f)}</span></h5><p>${fill(e.d, fmtNum(x.v, e.f))}</p></div></div>`;
+        <div><h5>${esc(e.n)}<span class="tot">${fmtNum(x.v, e.f)}</span></h5><p>${fill(e.d, fmtNum(x.v, e.f), e.p)}</p></div></div>`;
     }
     const e = D.enchantments[x.id];
-    return `<div class="ench"><span class="effic"><img src="${e.i}" alt=""></span><div><h5>${esc(e.n)} <span class="tot">${x.l.filter(Boolean).join(' · ')}</span></h5><p>${enchDesc(x.id)}</p></div></div>`;
+    return `<div class="ench"><span class="effic"><img src="${e.i}" alt=""></span><div><h5>${esc(e.n)} <span class="tot">${x.l.filter(Boolean).join(' · ')}</span></h5><p>${enchDesc(x.id, Math.max(1, ...x.l.map(n => TIER_NUM.indexOf(n) + 1)))}</p></div></div>`;
   };
   const groups = cats.map(([c, label]) => {
     const xs = Object.values(sum).filter(x => ((x.kind === 'e' ? D.effects[x.id].c : D.enchantments[x.id].c) || 'Utility') === c);

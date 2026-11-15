@@ -212,3 +212,22 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .wstats td small { font: 11px var(--f-body); color: var(--sub); }
 .kv { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 3px 0; font-size: 13px; color: var(--sub); }
 .kv b { font: 16px var(--f-head); color: var(--txt); margin-left: auto; }
+
+/* picker tiles: slot art | name, built-in effect, key numbers */
+.tiles { display: flex; flex-direction: column; gap: 8px; --slot: 64px; }
+.tile { display: grid; grid-template-columns: var(--slot) 1fr; gap: 12px; align-items: start; text-align: left; padding: 8px;
+  background: #ffffff08; border: 2px solid transparent; border-radius: 3px; }
+.tile:hover { background: #ffffff12; }
+.tile[aria-current="true"] { border-color: #ffffffa0; }
+.tile .slot { pointer-events: none; }
+.tbody { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tname { font: 18px/1.1 var(--f-head); color: #fff; }
+.tfx { display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--sub); }
+.tfx img { width: 22px; height: 22px; flex: none; }
+.tfx b { font-weight: 700; }
+.tfx.eff b { color: var(--eff); }
+.tfx.ench b { color: var(--ench); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; }
+.chips span { font: 15px var(--f-head); color: var(--txt); }
+.chips i { font: normal 600 10px var(--f-body); color: var(--sub); text-transform: uppercase; margin-right: 4px; letter-spacing: .04em; }
+@media (min-width: 640px) { .tiles { display: grid; grid-template-columns: 1fr 1fr; } }
