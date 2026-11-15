@@ -319,17 +319,19 @@ DROP = ROLLS['drop_tables']
 GROUPS = ROLLS['groups']
 
 
-def drop_row(tag):
-    """Row lookup with inheritance (PROCEDURAL_MAP 6): own row, else the first parent (list order) that has one."""
-    seen, stack = set(), [tag]
-    while stack:
-        t = stack.pop(0)
-        if t in seen:
-            continue
-        seen.add(t)
-        if t in DROP:
-            return DROP[t]
-        stack.extend(parents(t))
+def drop_row(tag, seen=None):
+    """Row lookup with inheritance, depth-first like the game (0x1456411b0 -> 0x1455f1310): the type's own row, else
+    each parent in list order with its whole ancestry before the next parent; the first row found wins."""
+    seen = seen if seen is not None else set()
+    if tag in seen:
+        return None
+    seen.add(tag)
+    if tag in DROP:
+        return DROP[tag]
+    for p in parents(tag):
+        r = drop_row(p, seen)
+        if r is not None:
+            return r
     return None
 
 
@@ -766,6 +768,31 @@ if ICONLESS:
     flag('effect', 'No icon in the game files', sorted(ICONLESS))
 if skipped:
     flag('item', 'Internal base rows without a name are left out', sorted(skipped))
+
+# ---------------------------------------------------------------- exclusive effects
+# An effect is exclusive when no item can roll it (not in any shipped item's pool) and it only exists as a fixed
+# effect on specific items (unique built-ins, talisman levels). 'only' = those items; one item = exclusive to it.
+ROLLABLE = {tpl_out[t]['e'] for p in pools for t, _ in p}
+fixed_on = {}
+for r in items:
+    for t in r.get('fx') or []:
+        fixed_on.setdefault(tpl_out[t]['e'], set()).add(r['id'])
+    for L in r.get('lv') or []:
+        for t in L['fx']:
+            fixed_on.setdefault(tpl_out[t]['e'], set()).add(r['id'])
+for etag, holders in fixed_on.items():
+    if etag not in ROLLABLE:
+        eff_out[etag]['only'] = sorted(holders)
+BOOKS = set(ench) - {t for t, v in ench.items() if v.get('u')}
+ench_on = {}
+for r in items:
+    if r.get('ue'):
+        ench_on.setdefault(r['ue'], set()).add(r['id'])
+for t, holders in ench_on.items():
+    # a unique's built-in row points at its book enchantment through its parents (FlameBelch.Unique -> FireAspect)
+    lineage = {t} | {x for x in ancestry([t]) if x.startswith('SW.Enchantment.')}
+    if not lineage & BOOKS:
+        ench[t]['only'] = sorted(holders)
 
 const = ROLLS['item_creator_constants']['SW.GameplayRuleSet.SecondPass']
 def player_attr(name):

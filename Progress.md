@@ -10,6 +10,7 @@
 - Picker = list of tiles: slot art, name, built-in effect / enchantment, key numbers (melee combo damage, hits, time, DPS; ranged shot interval, damage factor, arrows, ammo; artifact description, cooldown, souls). Descriptions fill every placeholder ({1}+ from ability key values); enchantments whose number is the level magnitude use the I / II / III values.
 - Back button: every open menu level is a history entry (device / browser back, Esc, in-menu ‹ step back one level; close / backdrop drop all levels); on the base screen back is normal page history. Verified with tools/app/flow.py (base screen = history entry 0).
 - Character pose + skin picker off (FEATURES.character = false); slots + tooltip carry the screen. Defaults: artifacts Special, talismans level III. Game placeholder text (dev-key effect names, "X Talisman Description") hidden + flagged. Companion talismans (5) show what they summon + the companion's base health / damage.
+- Exclusive effects: ◆ marker (orange = one item, grey = a few) on effects / enchantments that cannot be rolled or bought as a book and exist only as a fixed effect on specific items; tap shows which. Effect-pool lookup walks parents depth-first like the game (no pool changed).
 - Mobile first: phone = stacked band / character / grid, tooltip as bottom sheet; >= 1000 px = the game's 3 columns.
 
 ## Open

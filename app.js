@@ -116,6 +116,12 @@ function itemPowers() {
 
 // ---------------------------------------------------------------- flags (things the game files do not give us)
 const FLAG = Object.groupBy ? Object.groupBy(D.flags, f => f.area) : D.flags.reduce((m, f) => ((m[f.area] ||= []).push(f), m), {});
+// exclusive marker: the effect exists only as a fixed effect on these items (cannot be rolled or enchanted)
+function onlyMark(only) {
+  if (!only?.length) return '';
+  const names = only.map(id => ITEM[id]?.n || id);
+  return `<button class="only${only.length > 1 ? ' few' : ''}" data-flag="Only on ${esc(names.join(', '))}" aria-label="Exclusive">◆</button>`;
+}
 function flagMark(area, match) {
   if (!FEATURES.flags) return '';
   const f = (FLAG[area] || []).find(x => !match || x.what.includes(match));
@@ -261,7 +267,7 @@ function tooltipHTML(key, editable) {
     const ed = editable && src === 'rolled';
     return `<div class="eff${ed ? ' edit' : ''}" ${ed ? `data-act="pickfx" data-i="${i}"` : ''}>
       <span class="effic"><img class="fr" src="${D.art.effectFrame}" alt="">${e.i ? `<img src="${e.i}" alt="">` : flagMark('effect')}</span>
-      <div><h5>${esc(tplName(tpl))}${e.ph ? flagMark('text', 'placeholder') : ''}</h5><p>${tplDesc(tpl)}</p></div></div>`;
+      <div><h5>${esc(tplName(tpl))}${onlyMark(e.only)}${e.ph ? flagMark('text', 'placeholder') : ''}</h5><p>${tplDesc(tpl)}</p></div></div>`;
   };
   const rolled = (g.fx || []).slice(0, nSlots);
   let effects = (it.fx || []).map(t => effRow(t, 'unique')).join('');
@@ -274,7 +280,7 @@ function tooltipHTML(key, editable) {
   const en = enId && D.enchantments[enId];
   const enchHTML = en ? `<div class="ench${editable && !it.ue ? ' edit' : ''}" ${editable && !it.ue ? 'data-act="pickench"' : ''}>
       <span class="effic"><img src="${en.i}" alt=""></span>
-      <div><h5>${esc(en.n)}${it.ue ? '' : ' ' + TIER_NUM[(g.enl || 1) - 1]}</h5><p>${enchDesc(enId, it.ue ? 1 : (g.enl || 1))}</p>${en.tv || !en.d.includes('{0}') ? '' : flagMark('enchantment', 'ability')}</div></div>`
+      <div><h5>${esc(en.n)}${it.ue ? '' : ' ' + TIER_NUM[(g.enl || 1) - 1]}${onlyMark(en.only)}</h5><p>${enchDesc(enId, it.ue ? 1 : (g.enl || 1))}</p>${en.tv || !en.d.includes('{0}') ? '' : flagMark('enchantment', 'ability')}</div></div>`
     : editable && !tal ? `<button class="ench add" data-act="pickench"><span class="effic"><img src="${D.art.enchSwirl}" alt=""></span><div><h5>${esc(UI.Label_Enchantment || 'Enchantment')}</h5></div></button>` : '';
   const rarBadge = rar ? `<span class="rtag" style="--rc:${rar.c}"><i style="-webkit-mask-image:url('${rar.badge}');mask-image:url('${rar.badge}')"></i>${esc(rar.n.toUpperCase())}</span>` : '';
   const paired = it.uq || it.base;  // base weapon <-> its unique: one entry, rarity decides which
@@ -369,8 +375,8 @@ function picker(key) {
 }
 // one picker tile: slot art, name, built-in (intrinsic) effect / enchantment, key numbers
 function tileHTML(it, current) {
-  const intr = [...(it.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff' })),
-    ...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench' }] : []),
+  const intr = [...(it.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff', o: D.effects[D.templates[t].e].only })),
+    ...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench', o: D.enchantments[it.ue].only }] : []),
     ...(it.k === 'talisman' ? (it.lv[Math.min(3, it.lv.length) - 1]?.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff' })) : [])];
   const chips = [];
   if (it.ms) {
@@ -390,7 +396,7 @@ function tileHTML(it, current) {
   return `<button class="tile" data-act="equip" data-id="${it.id}" ${current ? 'aria-current="true"' : ''}>
     ${cellHTML(it, null, 'tabindex="-1" aria-hidden="true"').replace('<button', '<span').replace(/<\/button>$/, '</span>')}
     <span class="tbody"><span class="tname">${esc(it.n)}</span>
-      ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span>${x.n ? `<b>${esc(x.n)}</b> ` : ''}${x.d}</span></span>`).join('')}
+      ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span>${x.n ? `<b>${esc(x.n)}</b>${x.o?.length ? `<i class="only-t${x.o.length > 1 ? ' few' : ''}">◆</i>` : ''} ` : ''}${x.d}</span></span>`).join('')}
       ${it.d && !intr.length ? `<span class="tfx">${esc(it.d)}</span>` : ''}
       ${chips.length ? `<span class="chips">${chips.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join('')}</span>` : ''}
     </span></button>`;
@@ -500,7 +506,7 @@ function equip(id) {
   else replaceTop(sheet);  // came from an empty slot: the picker becomes the item sheet
 }
 document.addEventListener('click', ev => {
-  const fl = ev.target.closest('.flag');
+  const fl = ev.target.closest('.flag, .only');
   if (fl) { ev.stopPropagation(); toast(fl.dataset.flag); return; }
   const slot = ev.target.closest('[data-slot]');
   if (slot) {
