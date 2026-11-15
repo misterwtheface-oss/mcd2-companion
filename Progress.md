@@ -1,0 +1,17 @@
+# MCD2 Loadout Builder: progress
+
+## State (2026-11-15)
+- v1 local: inventory overview rebuilt (header band, character pose, 12-slot grid, tooltip editor), item / effect /
+  enchantment / skin pickers, Effects & Stats totals with All / Effects / Enchantments filters, data notes (flags).
+- Data: 296 items (58 melee, 22 ranged, 152 armor, 40 artifacts, 24 talismans), 51 distinct effect pools,
+  302 effect templates, 40 enchantments (9 unique built-ins), 28 skins. Build: 0 errors.
+- Mobile first: phone = stacked band / character / grid, tooltip as bottom sheet; >= 1000 px = the game's 3 columns.
+
+## Open
+- [ ] GitHub repo + Pages deploy (repo name to confirm with the user)
+- [ ] Headline Item Power aggregation (`EItemPowerCategory::Total`, GetPlayerItemPower `0x146155280` -> `0x14617ceb0`,
+      category -> attribute map `0x146179e30`); app shows the average of equipped items
+- [ ] Effect stacking for the totals panel (EffectTotal text uses attribute value + Offset); app shows the sum
+- [ ] Enchantment level I-III scaling and per-gear applicability
+- [ ] Armor base protection by weight class; weapon damage / item-power factor (PROCEDURAL_MAP 8) in a stats view
+- [ ] Cosmetics (cape, pet) live on a separate game screen; potion slot only on the HUD
