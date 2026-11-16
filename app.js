@@ -248,14 +248,14 @@ function statsHTML(it) {
     const extra = [...new Set(it.ms.steps.flatMap(st => [st.dt !== 'Melee' ? st.dt : null, ...(st.st || [])]).filter(Boolean))];
     return `<details class="wstats"><summary>Stats</summary>
       <div class="kv"><span>Attack speed</span><b>×${num(spd)}</b></div>
-      <table><thead><tr><th>#</th><th>Damage</th><th>Hit (s)</th><th>Step (s)</th><th>Speed</th></tr></thead><tbody>${rows}</tbody></table>
+      <table><thead><tr><th>#</th><th>Damage</th><th>Hit (sec)</th><th>Step (sec)</th><th>Speed</th></tr></thead><tbody>${rows}</tbody></table>
       <div class="kv"><span>Combo damage</span><b>${dmg}</b></div>
-      <div class="kv"><span>Combo time</span><b>${num(time)} s</b></div>
-      <div class="kv"><span>Damage / s</span><b>${time ? num(dmg / time, 1) : '?'}</b>${flagMark('stats', 'Swing times')}</div>
+      <div class="kv"><span>Combo time</span><b>${num(time)} sec</b></div>
+      <div class="kv"><span>Damage / sec</span><b>${time ? num(dmg / time, 1) : '?'}</b>${flagMark('stats', 'Swing times')}</div>
       <div class="kv"><span>Reach</span><b>${top.rg}</b></div>
       <div class="kv"><span>Splash</span><b>${Math.round(it.ms.steps[0].spl * 100)}%</b></div>
       ${it.ms.jump ? `<div class="kv"><span>Jump attack</span><b>${it.ms.jump.d}</b></div>` : ''}
-      ${it.ms.reset ? `<div class="kv"><span>Combo reset</span><b>${num(it.ms.reset)} s</b></div>` : ''}
+      ${it.ms.reset ? `<div class="kv"><span>Combo reset</span><b>${num(it.ms.reset)} sec</b></div>` : ''}
       ${extra.length ? `<div class="kv"><span>On hit</span><b>${extra.map(x => D.statuses[x] ? stTag(x, esc(D.statuses[x].n)) : esc(x)).join(', ')}</b></div>` : ''}
       ${it.ms.mismatch ? flagMark('stats', 'line up') : ''}</details>`;
   }
@@ -264,14 +264,14 @@ function statsHTML(it) {
     const interval = shotInterval(r, spd);
     return `<details class="wstats"><summary>Stats</summary>
       <div class="kv"><span>Attack speed</span><b>×${num(spd)}</b></div>
-      <div class="kv"><span>Time between shots</span><b>${num(interval)} s</b></div>
-      <div class="kv"><span>Shots / s</span><b>${num(1 / interval, 1)}</b></div>
+      <div class="kv"><span>Time between shots</span><b>${num(interval)} sec</b></div>
+      <div class="kv"><span>Shots / sec</span><b>${num(1 / interval, 1)}</b></div>
       <div class="kv"><span>Arrows per shot</span><b>${r.arrows}</b></div>
       <div class="kv"><span>Damage factor</span><b>×${num(r.dmgx)}</b>${flagMark('stats', 'Arrow base damage')}</div>
-      <div class="kv"><span>Charge time</span><b>${r.chg ? num(r.chg) + ' s' : '–'}</b></div>
+      <div class="kv"><span>Charge time</span><b>${r.chg ? num(r.chg) + ' sec' : '–'}</b></div>
       <div class="kv"><span>Charged shot</span><b>×${num(r.chgx)}</b></div>
       <div class="kv"><span>Ammo</span><b>${r.ammo}</b></div>
-      <div class="kv"><span>Reload</span><b>${num(r.rel)} s</b></div>
+      <div class="kv"><span>Reload</span><b>${num(r.rel)} sec</b></div>
       <div class="kv"><span>Jump shot</span><b>×${num(r.jump)}</b></div></details>`;
   }
   return '';
@@ -288,7 +288,7 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
   const fx = gearEffects(g);
   const nSlots = effectSlots(g);
   const stats = [];
-  if (it.cd != null) stats.push(`<span><img src="${D.art.timer}" alt="">${+it.cd.toFixed(2)}s</span>`);
+  if (it.cd != null) stats.push(`<span><img src="${D.art.timer}" alt="">${+it.cd.toFixed(2)} sec</span>`);
   if (it.soul) stats.push(`<span><img src="${D.art.soul}" alt="">${it.soul}</span>`);
   const effRow = (tpl, src, i) => {
     const t = D.templates[tpl], e = D.effects[t.e];
@@ -417,17 +417,17 @@ function tileHTML(it, current, act = 'equip') {
   const chips = [];
   if (it.ms) {
     const m = meleeTotals(it, attackSpeed('melee'));
-    chips.push(['Combo', m.dmg], ['Hits', it.ms.steps.length], ['Time', num(m.time) + ' s'], ['DPS', m.dps ? num(m.dps, 1) : '?']);
+    chips.push(['Combo', m.dmg], ['Hits', it.ms.steps.length], ['Time', num(m.time) + ' sec'], ['DPS', m.dps ? num(m.dps, 1) : '?']);
   }
   if (it.rs) {
     const iv = shotInterval(it.rs, attackSpeed('ranged'));
-    chips.push(['Shot', num(iv) + ' s'], ['Damage', '×' + num(it.rs.dmgx)]);
+    chips.push(['Shot', num(iv) + ' sec'], ['Damage', '×' + num(it.rs.dmgx)]);
     if (it.rs.arrows > 1) chips.push(['Arrows', it.rs.arrows]);
     chips.push(['Ammo', it.rs.ammo]);
   }
   if (it.comp?.hp) chips.push(['Health', it.comp.hp]);
   if (it.comp?.dmg) chips.push(['Damage', it.comp.dmg]);
-  if (it.cd != null) chips.push(['Cooldown', num(it.cd) + ' s']);
+  if (it.cd != null) chips.push(['Cooldown', num(it.cd) + ' sec']);
   if (it.soul) chips.push(['Souls', it.soul]);
   return `<button class="tile" data-act="${act}" data-id="${it.id}" ${current ? 'aria-current="true"' : ''}>
     ${cellHTML(it, null, 'tabindex="-1" aria-hidden="true"').replace('<button', '<span').replace(/<\/button>$/, '</span>')}
