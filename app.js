@@ -150,6 +150,7 @@ const GRP_N = { weapon: 'Weapon', armor: 'Armor', artifact: 'Artifact' };
 const ROLL_GRP = {};  // effect id -> gear groups whose pools hold it
 for (const it of D.items) if (it.p != null) (D.pools[it.p] || []).forEach(([t]) => (ROLL_GRP[D.templates[t].e] ||= new Set()).add(GEAR_GRP(it.k)));
 function originTag(it, kind, id) {  // -> { c, n, tip }; it = the item carrying it (null in search: only Unique shows)
+  if (kind === 'c') return { c: 'uq', n: 'Unique', tip: `Only on ${it.n}` };  // a companion talisman's summon
   const x = kind === 'n' ? D.enchantments[id] : D.effects[id];
   const onlyOn = x.only?.length ? `Only on ${x.only.map(i => ITEM[i]?.n || i).join(', ')}` : '';
   const uq = onlyOn && { c: 'uq' + (x.only.length > 1 ? ' few' : ''), n: 'Unique', tip: onlyOn };
@@ -319,7 +320,7 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
   let effects = (ue ? `<div class="ench"><span class="effic"><img src="${ue.i}" alt=""></span>
       <div><h5>${esc(ue.n)}${originMark(it, 'n', it.ue)}</h5><p>${enchDesc(it.ue)}</p></div></div>` : '')
     + (it.fx || []).map(t => effRow(t, 'unique')).join('');
-  if (tal) effects = fx.map(f => effRow(f.tpl, 'talisman')).join('');
+  if (tal) effects = (it.comp ? compRow(it) : '') + fx.map(f => effRow(f.tpl, 'talisman')).join('');
   else for (let i = 0; i < nSlots; i++) {
     effects += rolled[i] ? effRow(rolled[i], 'rolled', i)
       : editable ? `<button class="eff add" data-act="pickfx" data-i="${i}"><span class="effic"><img class="fr" src="${D.art.effectFrame}" alt=""><img class="plusic" src="${D.art.plus}" alt=""></span><div><h5>+</h5></div></button>` : '';
@@ -347,7 +348,7 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
       <div class="bigic" data-k="${esc(it.id)}" style="--rc:${rar ? rar.c : '#5a6372'}"><span class="rbg"></span>${(tal ? it.lv[(g.lv || 1) - 1]?.i : it.i) ? `<img src="${tal ? it.lv[(g.lv || 1) - 1].i : it.i}" alt="">` : flagMark('item')}</div>
     </div>
     <div class="lower">
-      ${it.d ? `<p class="desc">${stLinks(esc(it.d))}</p>` : ''}
+      ${it.d && !it.comp ? `<p class="desc">${stLinks(esc(it.d))}</p>` : ''}
       ${it.comp ? `<div class="srow">${it.comp.hp ? `<span>Health <b>${it.comp.hp}</b></span>` : ''}${it.comp.dmg ? `<span>Damage <b>${it.comp.dmg}</b></span>` : ''}${flagMark('stats', 'Companion')}</div>` : ''}
       ${enchHTML}${effects}
       ${statsHTML(it).replace('<details class="wstats">', `<details class="wstats"${statsOpen ? ' open' : ''}>`)}
@@ -355,6 +356,9 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
       ${editable ? `<div class="acts"><button class="btn" data-act="change">Change</button><button class="btn ghost" data-act="remove">Remove</button></div>` : ''}
     </div></div>`;
 }
+// companion talisman: no effect, it summons a mob; shown as its built-in effect with the mob's own name + icon
+const compRow = it => `<div class="eff"><span class="effic"><img class="fr" src="${D.art.effectFrame}" alt=""><img src="${it.comp.i}" alt=""></span>
+  <div><h5>${esc(it.comp.n)}${originMark(it, 'c')}</h5><p>${stLinks(esc(it.d || ''))}</p></div></div>`;
 const isDesktop = () => matchMedia('(min-width: 1000px)').matches;
 function renderTip() {
   $('#tip').innerHTML = focus ? tooltipHTML(focus, true) : '';
@@ -433,6 +437,7 @@ function tileHTML(it, current, act = 'equip') {
   const fxOf = t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff', o: originMark(it, 'e', D.templates[t].e, true) });
   const intr = [...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench', o: originMark(it, 'n', it.ue, true) }] : []),
     ...(it.fx || []).map(fxOf),
+    ...(it.comp ? [{ i: it.comp.i, n: it.comp.n, d: stLinks(esc(it.d || '')), c: 'eff', o: originMark(it, 'c', null, true) }] : []),
     ...(it.k === 'talisman' ? (it.lv[Math.min(3, it.lv.length) - 1]?.fx || []).map(fxOf) : [])];
   const chips = [];
   if (it.ms) {

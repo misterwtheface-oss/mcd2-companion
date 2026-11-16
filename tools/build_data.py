@@ -505,6 +505,12 @@ def add_items(cat, table):
                 dmg = next((kv_named({'KeyValues': ab.get('SpecificKeyValues', [])}).get('Damage')
                             for ab in mf.get('Abilities', []) if kv_named({'KeyValues': ab.get('SpecificKeyValues', [])}).get('Damage') is not None), None)
                 rec['comp'] = {k: v for k, v in (('hp', hp), ('dmg', dmg)) if v is not None}
+                # the summoned mob's own name + companion icon (OreUI Icons/Companions): the talisman's built-in effect
+                ce = ENT.get(comp) or {}
+                rec['comp']['n'] = ce.get('name')
+                rec['comp']['i'] = ver(ship(ce['icon']['png'], 'effects')) if (ce.get('icon') or {}).get('png') else None
+                if not rec['comp']['n'] or not rec['comp']['i']:
+                    errors.append(f'companion {comp} of {tag}: no name or icon')
                 COMPANIONS.append(tag)
         if cat == 'talisman':
             rec['lv'] = []
