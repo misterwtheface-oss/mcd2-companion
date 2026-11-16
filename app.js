@@ -161,6 +161,7 @@ function renderStats() {
       <div class="ipbig"><span class="ipicon" aria-hidden="true"></span><span>${ip.total ?? '–'}</span>${flagMark('stats', 'headline')}</div>
       <div class="minis">${mini}</div></div>
     <div class="st fx"><button class="btn" data-act="totals"><img src="${D.art.cat.stats}" alt="">${esc(UI.inventory_totaleffects_toggle)}</button>
+      <button class="btn" data-act="fxsearch"><img src="${D.art.cat.effects}" alt="">Search</button>
       <button class="btn" data-act="zones"><img class="loc" src="${D.art.location}" alt="">${esc(UI.map)}</button>
       ${FEATURES.flags ? `<button class="btn ghost" data-act="flags" aria-label="Data notes">⚑</button>` : ''}</div>`;
 }
@@ -458,6 +459,12 @@ function skinPicker() {
   overlay('Skin', `<div class="pgrid skins">${D.skins.map(s => `<div class="pcell"><button class="slot skin" data-act="setskin" data-id="${s.id}" ${s.id === S.skin ? 'aria-current="true"' : ''}><img class="ic" src="${s.i}" alt=""></button><span>${esc(s.n)}</span></div>`).join('')}</div>`, { keepScroll: true });
 }
 let totFilter = 'all';
+function fxTabs(act, cur) {  // All / Effects / Enchantments filter (totals panel, effect search)
+  return `<div class="tabs">${[['all', UI.inventory_totaleffects_all, D.art.cat.all],
+    ['effects', UI.inventory_totaleffects_effects || 'Effects', D.art.cat.effects],
+    ['enchantments', UI.inventory_totaleffects_enchantments || UI.header_enchantments, D.art.cat.enchantment]]
+    .map(([k, n, i]) => `<button data-act="${act}" data-f="${k}" ${cur === k ? 'aria-pressed="true"' : ''}><img src="${i}" alt="">${esc(n || k)}</button>`).join('')}</div>`;
+}
 function totals() {
   const sum = {};
   for (const s of SLOTS) {
@@ -485,10 +492,7 @@ function totals() {
     const xs = Object.values(sum).filter(x => ((x.kind === 'e' ? D.effects[x.id].c : D.enchantments[x.id].c) || 'Utility') === c);
     return xs.length ? `<h4 class="grp">${esc(label)}</h4>${xs.map(row).join('')}` : '';
   }).join('');
-  const tabs = [['all', UI.inventory_totaleffects_all, D.art.cat.all], ['effects', UI.inventory_totaleffects_effects, D.art.cat.effects],
-    ['enchantments', UI.inventory_totaleffects_enchantments, D.art.cat.enchantment]]
-    .map(([k, n, i]) => `<button data-act="totf" data-f="${k}" ${totFilter === k ? 'aria-pressed="true"' : ''}><img src="${i}" alt="">${esc(n || k)}</button>`).join('');
-  overlay(UI.inventory_totaleffects_toggle, `<div class="tabs">${tabs}</div>${flagMark('stats', 'sum')}${groups || '<p class="hint">–</p>'}`, { keepScroll: true, cls: 'totals' });
+  overlay(UI.inventory_totaleffects_toggle, `${fxTabs('totf', totFilter)}${flagMark('stats', 'sum')}${groups || '<p class="hint">–</p>'}`, { keepScroll: true, cls: 'totals' });
 }
 // ---------------------------------------------------------------- zones (areas: the mobs that spawn there, the gear its loot table adds)
 const ZONES_OF = {};  // item id -> zone indexes (area loot + mob drops); a unique counts its base item's zones
@@ -502,18 +506,21 @@ function zoneList() {
     ${z.i ? `<img src="${z.i}" alt="">` : '<span class="zi"></span>'}<span>${esc(z.n)}</span></button>`).join('')}</div>`);
 }
 const ROLE = { b: 'Boss', m: 'Miniboss' };
+const SECTION_KINDS = { weapons: ['melee', 'ranged'], armor: ['helmet', 'chest', 'legs', 'boots'], artifacts: ['artifact'], talismans: ['talisman'] };
+function gearBySection(ids) {  // read-only item tiles under the game's section headers (tap = item card)
+  return D.sections.map(sec => {
+    const list = ids.map(id => ITEM[id]).filter(it => SECTION_KINDS[sec.id].includes(it.k));
+    return list.length ? `<h4 class="grp zh"><img src="${sec.i}" alt="">${esc(sec.n)}</h4>
+      <div class="tiles">${list.map(it => tileHTML(it, false, 'zitem')).join('')}</div>` : '';
+  }).join('');
+}
 function zoneView(i) {
   const z = D.zones[i];
   const pic = m => m.i ? `<img class="mpic" src="${m.i}" alt="" loading="lazy">` : `<span class="mpic">${flagMark('zones', 'No portrait')}</span>`;
   const mob = m => `<div class="mob">${pic(m)}<div><div class="mname"><b>${esc(m.n)}</b>${m.r ? `<i class="role r-${m.r}">${ROLE[m.r]}</i>` : ''}
       ${m.nt ? '<i class="role">Night</i>' : ''}${m.a ? flagMark('zones', 'arena') : ''}</div>
     ${m.d ? `<div class="mdrops">${m.d.map(id => cellHTML(ITEM[id], null, `data-act="zitem" data-id="${id}"`)).join('')}</div>` : ''}</div></div>`;
-  const kinds = { weapons: ['melee', 'ranged'], armor: ['helmet', 'chest', 'legs', 'boots'], artifacts: ['artifact'], talismans: ['talisman'] };
-  const gear = D.sections.map(sec => {
-    const list = z.it.map(id => ITEM[id]).filter(it => kinds[sec.id].includes(it.k));
-    return list.length ? `<h4 class="grp zh"><img src="${sec.i}" alt="">${esc(sec.n)}</h4>
-      <div class="tiles">${list.map(it => tileHTML(it, false, 'zitem')).join('')}</div>` : '';
-  }).join('');
+  const gear = gearBySection(z.it);
   const books = z.en.map(id => `<span class="zen"><img src="${D.enchantments[id].i}" alt="">${esc(D.enchantments[id].n)}</span>`).join('');
   overlay(z.n, `<div class="zhead">${z.i ? `<img src="${z.i}" alt="">` : ''}${z.pl.length ? `<p>${z.pl.map(esc).join(' · ')}</p>` : ''}</div>
     <h4 class="grp">Mobs</h4>${z.mobs.filter(m => m.r || m.d || m.nt || m.a).map(mob).join('')}
@@ -522,6 +529,81 @@ function zoneView(i) {
     ${z.mobs.length ? '' : '<p class="hint">–</p>'}
     ${gear || `<h4 class="grp">${esc(UI.header_weapons)}</h4><p class="hint">–</p>${flagMark('zones', 'loot table')}`}
     ${books ? `<h4 class="grp zh"><img src="${D.art.cat.enchantment}" alt="">${esc(UI.header_enchantments)}</h4><div class="zens">${books}</div>` : ''}`);
+}
+// ---------------------------------------------------------------- effect search (every effect / enchantment -> the gear that carries it)
+const FX_GEAR = {};  // effect id -> { fixed: [item ids], roll: [item ids] }; a base item with a unique twin counts as its unique
+const ENCH_GEAR = {};  // enchantment id -> item ids that come with it
+{
+  const fixed = {}, roll = {};
+  for (const it of D.items) {
+    const id = it.uq || it.id;
+    const own = it.k === 'talisman' ? it.lv.flatMap(l => l.fx || []) : (it.fx || []);
+    own.forEach(t => (fixed[D.templates[t].e] ||= new Set()).add(id));
+    if (it.p != null) (D.pools[it.p] || []).forEach(([t]) => (roll[D.templates[t].e] ||= new Set()).add(id));
+    if (it.ue) (ENCH_GEAR[it.ue] ||= new Set()).add(id);
+  }
+  const byName = s => [...s].sort((a, b) => ITEM[a].n.localeCompare(ITEM[b].n));
+  for (const e of Object.keys(D.effects)) {
+    const f = fixed[e] || new Set();
+    FX_GEAR[e] = { fixed: byName(f), roll: byName([...(roll[e] || [])].filter(id => !f.has(id))) };
+  }
+  for (const k of Object.keys(ENCH_GEAR)) ENCH_GEAR[k] = byName(ENCH_GEAR[k]);
+}
+const FX_TPLS = {};  // effect id -> its templates, lowest tier first
+Object.entries(D.templates).forEach(([t, tp]) => (FX_TPLS[tp.e] ||= []).push(t));
+Object.values(FX_TPLS).forEach(ts => ts.sort((a, b) => (tplValue(D.templates[a]) || 0) - (tplValue(D.templates[b]) || 0)));
+const ENCH_SAME = {};  // enchantment name -> ids: an item's built-in copy (.Unique) and the book shares one search entry
+Object.entries(D.enchantments).forEach(([id, e]) => (ENCH_SAME[e.n] ||= []).push(id));
+const fxTiers = id => FX_TPLS[id].some(t => D.templates[t].t) ? FX_TPLS[id].filter(t => D.templates[t].t) : FX_TPLS[id];  // rollable tiers, else every value
+let fxQuery = '', fxFilter = 'all';
+function fxSearch() {
+  const rows = [...(fxFilter !== 'enchantments' ? Object.entries(D.effects).map(([id, e]) => ({ k: 'e', id, e })) : []),
+    ...(fxFilter !== 'effects' ? Object.entries(D.enchantments).filter(([id, e]) => !e.u || ENCH_SAME[e.n].length === 1)
+      .map(([id, e]) => ({ k: 'n', id, e })) : [])]
+    .sort((a, b) => a.e.n.localeCompare(b.e.n));
+  const row = ({ k, id, e }) => {
+    const top = k === 'e' && fxTiers(id).at(-1);
+    return `<div class="hit ${k === 'e' ? 'eff' : 'ench'}" role="button" tabindex="0" data-act="fxinfo" data-k="${k}" data-id="${id}" data-q="${esc((e.n + ' ' + e.d).toLowerCase())}">
+      <span class="effic">${k === 'e' ? `<img class="fr" src="${D.art.effectFrame}" alt="">` : ''}${e.i ? `<img src="${e.i}" alt="">` : ''}</span>
+      <div><h5>${esc(e.n)}${onlyMark(e.only)}</h5><p>${k === 'e' ? tplDesc(top) : enchDesc(id)}</p></div></div>`;  // a div: the exclusive marker is a button
+  };
+  const cats = [['Offensive', UI.effect_offensive], ['Defensive', UI.effect_defensive], ['Utility', UI.effect_utility]];
+  const groups = cats.map(([c, label]) => {
+    const xs = rows.filter(x => (x.e.c || 'Utility') === c);
+    return xs.length ? `<section class="hgrp"><h4 class="grp">${esc(label)}</h4>${xs.map(row).join('')}</section>` : '';
+  }).join('');
+  overlay('Search', `<div class="fxbar"><input id="fxq" type="search" placeholder="Search" value="${esc(fxQuery)}" autocomplete="off">${fxTabs('fxf', fxFilter)}</div>
+    ${groups}<p class="hint nohit" hidden>–</p>`, { keepScroll: true });
+  applyFxQuery();
+}
+function applyFxQuery() {
+  const q = fxQuery.trim().toLowerCase();
+  document.querySelectorAll('#ov .hit').forEach(r => { r.hidden = !!q && !r.dataset.q.includes(q); });
+  document.querySelectorAll('#ov .hgrp').forEach(g => { g.hidden = !g.querySelector('.hit:not([hidden])'); });
+  const none = $('#ov .nohit');
+  if (none) none.hidden = !!document.querySelector('#ov .hit:not([hidden])');
+}
+function fxInfo(k, id) {
+  if (k === 'e') {
+    const e = D.effects[id], { fixed, roll } = FX_GEAR[id];
+    const tiers = [...new Map(fxTiers(id).map(t => [tplDesc(t), t])).entries()].map(([desc, t]) =>
+      `<span>${D.templates[t].t ? `<b>${esc(D.templates[t].t === 'U' ? '★' : D.templates[t].t)}</b> ` : ''}${desc}</span>`).join('');
+    overlay(e.n, `<div class="fxopt"><span class="effic"><img class="fr" src="${D.art.effectFrame}" alt="">${e.i ? `<img src="${e.i}" alt="">` : ''}</span>
+        <div><h5>${esc(e.n)}${onlyMark(e.only)}</h5><div class="tiers">${tiers}</div></div></div>
+      ${fixed.length ? `<h4 class="grp">Built-in</h4>${gearBySection(fixed)}` : ''}
+      ${roll.length ? `<h4 class="grp">Can roll ${flagMark('effects')}</h4>${gearBySection(roll)}` : ''}
+      ${fixed.length || roll.length ? '' : '<p class="hint">–</p>'}`, { keepScroll: true });
+    return;
+  }
+  const e = D.enchantments[id], same = ENCH_SAME[e.n];
+  const gear = [...new Set(same.flatMap(x => ENCH_GEAR[x] || []))];
+  const zones = D.zones.map((z, zi) => same.some(x => z.en.includes(x)) ? `<button data-act="zone" data-z="${zi}">${esc(z.n)}</button>` : '').join('');
+  const tiers = e.u ? '' : `<div class="tiers">${TIER_NUM.slice(0, e.tiers).map((n, l) => `<span><b>${n}</b> ${enchDesc(id, l + 1)}</span>`).join('')}</div>`;
+  overlay(e.n, `<div class="fxopt"><span class="effic"><img src="${e.i}" alt=""></span>
+      <div><h5>${esc(e.n)}${onlyMark(e.only)}</h5>${tiers || `<p>${enchDesc(id)}</p>`}</div></div>
+    ${gear.length ? `<h4 class="grp">Built-in</h4>${gearBySection(gear)}` : ''}
+    ${zones ? `<div class="found"><span>${esc(UI.map)}</span>${zones}</div>` : ''}
+    ${e.u ? '' : flagMark('enchantment', 'gear')}`, { keepScroll: true });
 }
 function itemCard(id) {  // read-only tooltip of an item at the builder's defaults
   overlay(ITEM[id].n, tooltipHTML(null, false, newGear(id), false), { cls: 'sheet' });
@@ -591,6 +673,9 @@ document.addEventListener('click', ev => {
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
     case 'totals': openFresh(totals); break;
     case 'zones': openFresh(zoneList); break;
+    case 'fxsearch': openFresh(fxSearch); break;
+    case 'fxf': fxFilter = d.f; fxSearch(); break;
+    case 'fxinfo': push(() => fxInfo(d.k, d.id)); break;
     case 'zone': push(() => zoneView(+d.z)); break;
     case 'zitem': push(() => itemCard(d.id)); break;
     case 'totf': totFilter = d.f; totals(); break;
@@ -610,6 +695,7 @@ document.addEventListener('click', ev => {
     case 'setench': if (d.id) { g.en = d.id; g.enl = +d.l; } else { delete g.en; delete g.enl; } save(); back(); renderAll(); break;
   }
 });
+document.addEventListener('input', ev => { if (ev.target.id === 'fxq') { fxQuery = ev.target.value; applyFxQuery(); } });
 document.addEventListener('change', ev => {
   if (ev.target.id === 'lvl') { S.level = Math.max(1, Math.min(D.rules.levelMax, +ev.target.value || 1)); save(); renderStats(); }
   if (ev.target.id === 'ipin' && S.gear[focus]) { S.gear[focus].ip = Math.max(1, Math.min(999, +ev.target.value || 1)); save(); renderAll(); }
@@ -622,7 +708,10 @@ document.addEventListener('mouseover', ev => {  // desktop: hovering a slot prev
 document.addEventListener('mouseout', ev => {
   if (isDesktop() && ev.target.closest('#gear [data-slot]') && !ev.relatedTarget?.closest?.('#gear [data-slot]')) renderTip();
 });
-document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('#ov').hidden) back(); });
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && !$('#ov').hidden) back();
+  if (ev.key === 'Enter' && ev.target.classList?.contains('hit')) ev.target.click();
+});
 let toastT;
 function toast(msg) {
   let t = $('#toast');
