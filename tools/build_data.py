@@ -747,7 +747,17 @@ ui_text['map'] = LOC['Text/Release/TabLabels.csv']['tab_ingame_map']
 # books its loot table adds. Base items stay base (the drop is the base type; Unique swaps it, PROCEDURAL_MAP 3.6).
 ID_CI = {r['id'].lower(): r['id'] for r in items}
 NON_GEAR = {'SW.LootSlot.TNT', 'SW.LootSlot.Consumable', 'SW.LootSlot.Emeralds', 'SW.LootSlot.SpringStone'}
-ZONE_MISS, ARENA_BOSS, zones = set(), set(), []
+ZONE_MISS, ARENA_BOSS, NO_RENDER, zones = set(), set(), set(), []
+RENDERS = os.path.join(X, 'assets', 'renders', 'mobs')  # extract tools/mob_portraits.py: idle pose, game 3/4 view
+
+
+def mob_render(tags):
+    """Portrait of the first of a mob's tags (sizes / variants share a name) that has a render."""
+    for t in tags:
+        src = os.path.join(RENDERS, re.sub(r'[^a-z0-9]+', '_', t.lower()).strip('_') + '_35.png')
+        if os.path.isfile(src):
+            return ver(ship(src, 'mobs', size=192))
+    return None
 
 
 def app_items(tags):
@@ -765,6 +775,9 @@ for r in load(TAB, 'regions.json'):
     mobs = []
     for m in r['mobs']:
         rec = {'n': m['name'], 'r': {'boss': 'b', 'miniboss': 'm'}.get(m['role'], '')}
+        rec['i'] = mob_render(m['tags'])
+        if not rec['i']:
+            NO_RENDER.add(m['name'])
         if m['night']:
             rec['nt'] = 1
         if m.get('arena'):
@@ -791,6 +804,10 @@ if ARENA_BOSS:
          'whose name points at a single zone are used.', sorted(ARENA_BOSS))
 flag('zones', "Gear per zone is what the zone's loot table adds; drop chances per kill or chest are decided in game code "
      'and not shown. Zones without their own loot table list no gear.')
+flag('zones', 'Mob portraits are rendered from the game\'s 3D models in their idle animation (the game has no 2D enemy '
+     'art); the camera frames each model alone, so sizes are not to scale.')
+if NO_RENDER:
+    flag('zones', 'No portrait rendered for these mobs yet', sorted(NO_RENDER))
 if ZONE_MISS:
     flag('zones', 'Zone loot entries that are not items in the builder (left out)', sorted(ZONE_MISS))
 

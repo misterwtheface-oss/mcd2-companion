@@ -257,7 +257,9 @@ body.nochar .char { display: none; }
 .zhead p { margin: 0; color: var(--sub); font-size: 13px; }
 .zh { display: flex; align-items: center; gap: 8px; }
 .zh img { width: 20px; height: 20px; opacity: .85; filter: brightness(0) invert(84%) sepia(6%) saturate(250%) hue-rotate(185deg); }
-.mob { padding: 6px 0; border-bottom: 1px solid #ffffff12; }
+.mob { display: grid; grid-template-columns: 72px 1fr; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid #ffffff12; }
+.mpic { width: 72px; height: 72px; object-fit: contain; display: grid; place-items: center;
+  background: radial-gradient(circle at 50% 60%, #ffffff14, transparent 70%); }
 .mname { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mname b { font: 17px var(--f-head); font-weight: normal; }
 .role { font: normal 11px var(--f-tag); text-transform: uppercase; padding: 1px 6px; border: 1px solid #ffffff40; border-radius: 3px; color: var(--sub); }
@@ -271,4 +273,6 @@ body.nochar .char { display: none; }
 .found > span { font: 600 11px var(--f-body); text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
 .found button { border: 2px solid #ffffff26; border-radius: 3px; padding: 3px 8px; color: var(--txt); }
 .found button:hover { border-color: #ffffff70; }
-.mplain { margin: 8px 0 0; font: 16px/1.6 var(--f-head); color: var(--txt); }
+.mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 10px 6px; margin-top: 10px; }
+.mcell { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; font: 13px/1.1 var(--f-head); }
+.mcell .mpic { width: 76px; height: 76px; }

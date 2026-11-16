@@ -485,9 +485,10 @@ function zoneList() {
 const ROLE = { b: 'Boss', m: 'Miniboss' };
 function zoneView(i) {
   const z = D.zones[i];
-  const mob = m => `<div class="mob"><div class="mname"><b>${esc(m.n)}</b>${m.r ? `<i class="role r-${m.r}">${ROLE[m.r]}</i>` : ''}
+  const pic = m => m.i ? `<img class="mpic" src="${m.i}" alt="" loading="lazy">` : `<span class="mpic">${flagMark('zones', 'No portrait')}</span>`;
+  const mob = m => `<div class="mob">${pic(m)}<div><div class="mname"><b>${esc(m.n)}</b>${m.r ? `<i class="role r-${m.r}">${ROLE[m.r]}</i>` : ''}
       ${m.nt ? '<i class="role">Night</i>' : ''}${m.a ? flagMark('zones', 'arena') : ''}</div>
-    ${m.d ? `<div class="mdrops">${m.d.map(id => cellHTML(ITEM[id], null, `data-act="zitem" data-id="${id}"`)).join('')}</div>` : ''}</div>`;
+    ${m.d ? `<div class="mdrops">${m.d.map(id => cellHTML(ITEM[id], null, `data-act="zitem" data-id="${id}"`)).join('')}</div>` : ''}</div></div>`;
   const kinds = { weapons: ['melee', 'ranged'], armor: ['helmet', 'chest', 'legs', 'boots'], artifacts: ['artifact'], talismans: ['talisman'] };
   const gear = D.sections.map(sec => {
     const list = z.it.map(id => ITEM[id]).filter(it => kinds[sec.id].includes(it.k));
@@ -497,7 +498,8 @@ function zoneView(i) {
   const books = z.en.map(id => `<span class="zen"><img src="${D.enchantments[id].i}" alt="">${esc(D.enchantments[id].n)}</span>`).join('');
   overlay(z.n, `<div class="zhead">${z.i ? `<img src="${z.i}" alt="">` : ''}${z.pl.length ? `<p>${z.pl.map(esc).join(' · ')}</p>` : ''}</div>
     <h4 class="grp">Mobs</h4>${z.mobs.filter(m => m.r || m.d || m.nt || m.a).map(mob).join('')}
-    ${z.mobs.some(m => !(m.r || m.d || m.nt || m.a)) ? `<p class="mplain">${z.mobs.filter(m => !(m.r || m.d || m.nt || m.a)).map(m => esc(m.n)).join(' · ')}</p>` : ''}
+    ${z.mobs.some(m => !(m.r || m.d || m.nt || m.a)) ? `<div class="mgrid">${z.mobs.filter(m => !(m.r || m.d || m.nt || m.a))
+      .map(m => `<div class="mcell">${pic(m)}<span>${esc(m.n)}</span></div>`).join('')}</div>` : ''}
     ${z.mobs.length ? '' : '<p class="hint">–</p>'}
     ${gear || `<h4 class="grp">${esc(UI.header_weapons)}</h4><p class="hint">–</p>${flagMark('zones', 'loot table')}`}
     ${books ? `<h4 class="grp zh"><img src="${D.art.cat.enchantment}" alt="">${esc(UI.header_enchantments)}</h4><div class="zens">${books}</div>` : ''}`);
