@@ -283,3 +283,10 @@ body.nochar .char { display: none; }
 .hit:hover { background: #ffffff0d; }
 .hit[hidden], .hgrp[hidden] { display: none; }
 .tiers > span { font-size: 13px; color: var(--sub); }
+.stt { border-bottom: 1px dotted currentColor; cursor: help; }
+#stpop { position: fixed; z-index: 60; display: flex; gap: 10px; align-items: flex-start; width: max-content; max-width: min(300px, calc(100vw - 16px));
+  padding: 10px 12px; background: #0b141df5; border: 2px solid #ffffff30; border-radius: 3px; box-shadow: 0 6px 24px #0009; pointer-events: none; }
+#stpop[hidden] { display: none; }
+#stpop img { width: 40px; height: 40px; flex: none; }
+#stpop h5 { margin: 0 0 3px; font: 17px/1.1 var(--f-head); color: var(--sub2); }
+#stpop p { margin: 0; font-size: 13px; color: var(--sub); }

@@ -882,13 +882,46 @@ def player_attr(name):
     return None
 
 
+# ---------------------------------------------------------------- statuses (SW_Status_* type assets: tag + icon; text from DT_*StatusDefinition)
+# Keyed by the tag after SW.Status. A variant (X_Infinite, X_Short, X_Propagated) is dropped when its base status has
+# the same name. Artifact buffs (Artifact_Buff_*) are the artifacts' own statuses: kept, marked 'a' (the app does not
+# link their names in text, they equal the artifact names).
+ST_TEXT = {}
+for f, rows in LOC.items():
+    if re.search(r'StatusDefinition\.csv$|StatusEffectDefinition\.csv$', f):
+        for k, v in rows.items():
+            m = re.match(r'SW_Status_(.+)_SW_TextEntry_(Name|Description)$', k)
+            if m:
+                ST_TEXT.setdefault(m.group(1), {})[m.group(2)] = v
+GEN = os.path.join(X, 'data', 'json', 'Dungeons', 'Content', 'Spicewood', 'GameplayLogic', 'SWTypeSystemPrimaryDataAsset', '_Generated_')
+statuses = {}
+for key in sorted(ST_TEXT):
+    t = ST_TEXT[key]
+    if 'Name' not in t:
+        continue
+    base = key.split('_')[0]
+    if base != key and base in ST_TEXT and ST_TEXT[base].get('Name') == t['Name']:
+        continue
+    icon = None
+    ap = os.path.join(GEN, f'SW_Status_{key}.json')
+    if os.path.isfile(ap):
+        refs = load(ap)[0]['Properties'].get('AssetReferences') or []
+        icon = next((tex(r['ObjectPath']) for r in refs if 'Texture2D' in r.get('ObjectName', '')), None)
+    rec = {'n': t['Name'], 'd': t.get('Description', ''), 'i': ver(ship(icon, 'statuses')) if icon else None}
+    if key.startswith('Artifact_Buff_'):
+        rec['a'] = 1
+    statuses[key] = rec
+NO_ST_ICON = sorted(k for k, s in statuses.items() if not s['i'])
+if NO_ST_ICON:
+    flag('status', 'These statuses have no icon in the game files (no type asset links one).', NO_ST_ICON)
+
 LEVEL_MAX = player_attr('SW.Attribute.LevelMax')
 if LEVEL_MAX is None:
     errors.append('SW.Attribute.LevelMax not found in DT_PlayerDefinition')
 out = {
     'ui': ui_text, 'art': ui_art, 'fonts': fonts, 'sections': sections, 'slotLabel': SLOT_LABEL,
     'rarities': rar, 'items': items, 'pools': pools, 'templates': tpl_out, 'effects': eff_out,
-    'enchantments': ench, 'skins': skins, 'zones': zones, 'flags': flags,
+    'enchantments': ench, 'statuses': statuses, 'skins': skins, 'zones': zones, 'flags': flags,
     'rules': {'maxEffects': const['NumberOfEffectsMax'], 'ipPerLevel': 1.5, 'levelMax': LEVEL_MAX},
 }
 for p in walk_paths(out):

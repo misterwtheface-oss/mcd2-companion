@@ -83,11 +83,18 @@ function fmtNum(v, f) {
   return (f.sign && x > 0 ? '+' : '') + s + (f.pct ? '%' : '');
 }
 // {0} = the given value, {1..n} = the entry's extra placeholders (p: [[value | null, format]])
-const fill = (text, val, extra) => esc(text || '').replace(/\{(\d+)\}/g, (m, i) => {
+const fill = (text, val, extra) => stLinks(esc(text || '').replace(/\{(\d+)\}/g, (m, i) => {
   if (+i === 0) return `<b>${esc(val)}</b>`;
   const x = extra?.[i - 1];
   return `<b>${x ? esc(fmtNum(x[0], x[1])) : '?'}</b>`;
-});
+}));
+// status names in description text (game name, or the tag before "status": "the Strength status") -> tap / hover card.
+// Artifact buffs are left out: their names are the artifacts' own names.
+const ST_TERMS = Object.entries(D.statuses).filter(([, s]) => !s.a).flatMap(([k, s]) => [[s.n, k], ...(k !== s.n && !k.includes('_') ? [[k + '(?= status)', k]] : [])]);
+const ST_OF = Object.fromEntries(Object.entries(D.statuses).filter(([, s]) => !s.a).map(([k, s]) => [s.n, k]));
+const ST_RE = new RegExp(String.raw`\b(?:${ST_TERMS.map(([t]) => t).sort((a, b) => b.length - a.length).join('|')})\b`, 'g');
+const stTag = (k, text) => `<span class="stt" data-act="status" data-s="${k}">${text}</span>`;
+function stLinks(html) { return html.replace(ST_RE, m => stTag(ST_OF[m] || m, m)); }
 const tplValue = t => t.v ?? (t.r ? t.r[1] : null);
 function tplName(id) {
   const t = D.templates[id], e = D.effects[t.e];
@@ -100,7 +107,7 @@ function tplDesc(id) {
 }
 function enchDesc(id, lvl = 1) {  // tv = per-level values (I / II / III) when the number is the level's magnitude
   const e = D.enchantments[id];
-  if (!e.d.includes('{0}')) return esc(e.d);
+  if (!e.d.includes('{0}')) return stLinks(esc(e.d));
   const v = e.tv ? e.tv[Math.min(lvl, e.tv.length) - 1] : e.v;
   return fill(e.d, v == null ? '?' : fmtNum(v, e.f), e.p);
 }
@@ -249,7 +256,7 @@ function statsHTML(it) {
       <div class="kv"><span>Splash</span><b>${Math.round(it.ms.steps[0].spl * 100)}%</b></div>
       ${it.ms.jump ? `<div class="kv"><span>Jump attack</span><b>${it.ms.jump.d}</b></div>` : ''}
       ${it.ms.reset ? `<div class="kv"><span>Combo reset</span><b>${num(it.ms.reset)} s</b></div>` : ''}
-      ${extra.length ? `<div class="kv"><span>On hit</span><b>${extra.map(esc).join(', ')}</b></div>` : ''}
+      ${extra.length ? `<div class="kv"><span>On hit</span><b>${extra.map(x => D.statuses[x] ? stTag(x, esc(D.statuses[x].n)) : esc(x)).join(', ')}</b></div>` : ''}
       ${it.ms.mismatch ? flagMark('stats', 'line up') : ''}</details>`;
   }
   if (it.rs) {
@@ -321,7 +328,7 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
       <div class="bigic" data-k="${esc(it.id)}" style="--rc:${rar ? rar.c : '#5a6372'}"><span class="rbg"></span>${(tal ? it.lv[(g.lv || 1) - 1]?.i : it.i) ? `<img src="${tal ? it.lv[(g.lv || 1) - 1].i : it.i}" alt="">` : flagMark('item')}</div>
     </div>
     <div class="lower">
-      ${it.d ? `<p class="desc">${esc(it.d)}</p>` : ''}
+      ${it.d ? `<p class="desc">${stLinks(esc(it.d))}</p>` : ''}
       ${it.comp ? `<div class="srow">${it.comp.hp ? `<span>Health <b>${it.comp.hp}</b></span>` : ''}${it.comp.dmg ? `<span>Damage <b>${it.comp.dmg}</b></span>` : ''}${flagMark('stats', 'Companion')}</div>` : ''}
       ${enchHTML}${effects}
       ${statsHTML(it).replace('<details class="wstats">', `<details class="wstats"${statsOpen ? ' open' : ''}>`)}
@@ -426,7 +433,7 @@ function tileHTML(it, current, act = 'equip') {
     ${cellHTML(it, null, 'tabindex="-1" aria-hidden="true"').replace('<button', '<span').replace(/<\/button>$/, '</span>')}
     <span class="tbody"><span class="tname">${esc(it.n)}</span>
       ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span>${x.n ? `<b>${esc(x.n)}</b>${x.o?.length ? `<i class="only-t${x.o.length > 1 ? ' few' : ''}">◆</i>` : ''} ` : ''}${x.d}</span></span>`).join('')}
-      ${it.d && !intr.length ? `<span class="tfx">${esc(it.d)}</span>` : ''}
+      ${it.d && !intr.length ? `<span class="tfx">${stLinks(esc(it.d))}</span>` : ''}
       ${chips.length ? `<span class="chips">${chips.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join('')}</span>` : ''}
     </span></button>`;
 }
@@ -654,6 +661,7 @@ function equip(id) {
   else replaceTop(sheet);  // came from an empty slot: the picker becomes the item sheet
 }
 document.addEventListener('click', ev => {
+  if (!ev.target.closest('.stt')) hideStatus();
   const fl = ev.target.closest('.flag, .only');
   if (fl) { ev.stopPropagation(); toast(fl.dataset.flag); return; }
   const slot = ev.target.closest('[data-slot]');
@@ -673,6 +681,7 @@ document.addEventListener('click', ev => {
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
     case 'totals': openFresh(totals); break;
     case 'zones': openFresh(zoneList); break;
+    case 'status': ev.preventDefault(); showStatus(a, true); break;
     case 'fxsearch': openFresh(fxSearch); break;
     case 'fxf': fxFilter = d.f; fxSearch(); break;
     case 'fxinfo': push(() => fxInfo(d.k, d.id)); break;
@@ -709,9 +718,29 @@ document.addEventListener('mouseout', ev => {
   if (isDesktop() && ev.target.closest('#gear [data-slot]') && !ev.relatedTarget?.closest?.('#gear [data-slot]')) renderTip();
 });
 document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && stPop()?.hidden === false) return hideStatus();
   if (ev.key === 'Escape' && !$('#ov').hidden) back();
   if (ev.key === 'Enter' && ev.target.classList?.contains('hit')) ev.target.click();
 });
+// status card: hover (pointer devices) or tap a status name; any other tap, scroll or Esc closes it
+let stPinned = false;
+const stPop = () => $('#stpop');
+function showStatus(el, pin) {
+  const s = D.statuses[el.dataset.s];
+  if (!s) return;
+  let p = stPop();
+  if (!p) { p = document.createElement('div'); p.id = 'stpop'; document.body.append(p); }
+  p.innerHTML = `${s.i ? `<img src="${s.i}" alt="">` : ''}<div><h5>${esc(s.n)}</h5><p>${esc(s.d)}</p></div>`;
+  p.hidden = false;
+  stPinned = pin;
+  const r = el.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+  p.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  p.style.top = (r.bottom + 6 + h > innerHeight - 8 ? r.top - h - 6 : r.bottom + 6) + 'px';
+}
+function hideStatus() { const p = stPop(); if (p) p.hidden = true; stPinned = false; }
+document.addEventListener('scroll', hideStatus, true);
+document.addEventListener('mouseover', ev => { const el = ev.target.closest?.('.stt'); if (el && matchMedia('(hover: hover)').matches && !stPinned) showStatus(el, false); });
+document.addEventListener('mouseout', ev => { if (ev.target.closest?.('.stt') && !stPinned) hideStatus(); });
 let toastT;
 function toast(msg) {
   let t = $('#toast');
