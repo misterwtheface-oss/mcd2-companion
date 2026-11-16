@@ -38,7 +38,7 @@ tools/build_data.py
 Header button Map: zone list -> one zone's mobs, gear and enchantment books (data: extract `data/app/tables/regions.json`,
 built by `_mcd2_extract/tools/build_world.py`). Item tooltips link back to the zones an item drops in.
 
-## Flagged (shown in the app with an orange marker and listed under the header's flag button)
+## Flagged (kept in the data; hidden in the app, FEATURES.flags = false shows the orange markers + header list again)
 Everything the game files do not supply is listed in `MCD2.flags` by the build: shader-drawn UI (item-power icon,
 slot glow, rarity fill, tooltip frame) redrawn in CSS; 2D pose instead of the live 3D character; the headline item
 power formula and effect stacking (app shows average / sum); armor base protection; enchantment level scaling and
