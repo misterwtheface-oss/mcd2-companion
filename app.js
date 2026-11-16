@@ -118,7 +118,7 @@ function effectSlots(g) {
   const it = ITEM[g.id];
   if (!it || it.k === 'talisman') return 0;
   const base = RAR[g.rar]?.fx || 0;
-  return Math.min(D.rules.maxEffects - (it.fx?.length || 0), base + (g.storm ? 1 : 0));
+  return Math.min(D.rules.maxEffects - (it.fx?.length || 0) - (it.ue ? 1 : 0), base + (g.storm ? 1 : 0));  // a built-in enchantment holds an effect slot
 }
 function gearEffects(g) {  // [{tpl, src}] every effect an equipped item carries
   const it = ITEM[g.id];
@@ -142,11 +142,28 @@ function itemPowers() {
 
 // ---------------------------------------------------------------- flags (things the game files do not give us)
 const FLAG = Object.groupBy ? Object.groupBy(D.flags, f => f.area) : D.flags.reduce((m, f) => ((m[f.area] ||= []).push(f), m), {});
-// exclusive marker: the effect exists only as a fixed effect on these items (cannot be rolled or enchanted)
-function onlyMark(only) {
-  if (!only?.length) return '';
-  const names = only.map(id => ITEM[id]?.n || id);
-  return `<button class="only${only.length > 1 ? ' few' : ''}" data-flag="Only on ${esc(names.join(', '))}" aria-label="Exclusive">◆</button>`;
+// origin tag on built-in effects / enchantments. Unique: no gear rolls it, it exists only on the items listed (orange =
+// one item). Enchantment: a unique's built-in enchantment, held in an effect slot (the item still takes a book).
+// Basic: a rollable effect; native when this item's own type rolls it, else named by the types that do.
+const GEAR_GRP = k => k === 'melee' || k === 'ranged' ? 'weapon' : k === 'artifact' || k === 'talisman' ? k : 'armor';
+const GRP_N = { weapon: 'Weapon', armor: 'Armor', artifact: 'Artifact' };
+const ROLL_GRP = {};  // effect id -> gear groups whose pools hold it
+for (const it of D.items) if (it.p != null) (D.pools[it.p] || []).forEach(([t]) => (ROLL_GRP[D.templates[t].e] ||= new Set()).add(GEAR_GRP(it.k)));
+function originTag(it, kind, id) {  // -> { c, n, tip }; it = the item carrying it (null in search: only Unique shows)
+  const x = kind === 'n' ? D.enchantments[id] : D.effects[id];
+  const onlyOn = x.only?.length ? `Only on ${x.only.map(i => ITEM[i]?.n || i).join(', ')}` : '';
+  const uq = onlyOn && { c: 'uq' + (x.only.length > 1 ? ' few' : ''), n: 'Unique', tip: onlyOn };
+  if (kind === 'n') return it ? { c: 'oench' + (onlyOn ? ' uq' : ''), n: 'Enchantment', tip: onlyOn || 'Built-in enchantment in an effect slot' } : uq || null;
+  if (uq || !it) return uq || null;
+  const grps = Object.keys(GRP_N).filter(g => ROLL_GRP[id]?.has(g));
+  if (grps.includes(GEAR_GRP(it.k))) return { c: 'basic', n: 'Basic', tip: `Also rolls on ${GRP_N[GEAR_GRP(it.k)].toLowerCase()}` };
+  const n = grps.map(g => GRP_N[g]).join(' · ');
+  return { c: 'cross', n: `${n} effect`, tip: `Rolls on ${n.toLowerCase().replace(' · ', ' and ')}, not on ${it.k === 'talisman' ? 'talismans' : GRP_N[GEAR_GRP(it.k)].toLowerCase()}` };
+}
+function originMark(it, kind, id, inButton = false) {  // inside a button (picker tile) the tag is plain text
+  const t = originTag(it, kind, id);
+  if (!t) return '';
+  return inButton ? `<i class="otag ${t.c}">${esc(t.n)}</i>` : `<button class="otag ${t.c}" data-flag="${esc(t.tip)}">${esc(t.n)}</button>`;
 }
 function flagMark(area, match) {
   if (!FEATURES.flags) return '';
@@ -295,20 +312,22 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
     const ed = editable && src === 'rolled';
     return `<div class="eff${ed ? ' edit' : ''}" ${ed ? `data-act="pickfx" data-i="${i}"` : ''}>
       <span class="effic"><img class="fr" src="${D.art.effectFrame}" alt="">${e.i ? `<img src="${e.i}" alt="">` : flagMark('effect')}</span>
-      <div><h5>${esc(tplName(tpl))}${onlyMark(e.only)}${e.ph ? flagMark('text', 'placeholder') : ''}</h5><p>${tplDesc(tpl)}</p></div></div>`;
+      <div><h5>${esc(tplName(tpl))}${src === 'rolled' ? '' : originMark(it, 'e', t.e)}${e.ph ? flagMark('text', 'placeholder') : ''}</h5><p>${tplDesc(tpl)}</p></div></div>`;
   };
   const rolled = (g.fx || []).slice(0, nSlots);
-  let effects = (it.fx || []).map(t => effRow(t, 'unique')).join('');
+  const ue = it.ue && D.enchantments[it.ue];  // built-in enchantment: sits in an effect slot, the enchantment slot stays free
+  let effects = (ue ? `<div class="ench"><span class="effic"><img src="${ue.i}" alt=""></span>
+      <div><h5>${esc(ue.n)}${originMark(it, 'n', it.ue)}</h5><p>${enchDesc(it.ue)}</p></div></div>` : '')
+    + (it.fx || []).map(t => effRow(t, 'unique')).join('');
   if (tal) effects = fx.map(f => effRow(f.tpl, 'talisman')).join('');
   else for (let i = 0; i < nSlots; i++) {
     effects += rolled[i] ? effRow(rolled[i], 'rolled', i)
       : editable ? `<button class="eff add" data-act="pickfx" data-i="${i}"><span class="effic"><img class="fr" src="${D.art.effectFrame}" alt=""><img class="plusic" src="${D.art.plus}" alt=""></span><div><h5>+</h5></div></button>` : '';
   }
-  const enId = it.ue || g.en;
-  const en = enId && D.enchantments[enId];
-  const enchHTML = en ? `<div class="ench${editable && !it.ue ? ' edit' : ''}" ${editable && !it.ue ? 'data-act="pickench"' : ''}>
+  const en = g.en && D.enchantments[g.en];
+  const enchHTML = en ? `<div class="ench${editable ? ' edit' : ''}" ${editable ? 'data-act="pickench"' : ''}>
       <span class="effic"><img src="${en.i}" alt=""></span>
-      <div><h5>${esc(en.n)}${it.ue ? '' : ' ' + TIER_NUM[(g.enl || 1) - 1]}${onlyMark(en.only)}</h5><p>${enchDesc(enId, it.ue ? 1 : (g.enl || 1))}</p>${en.tv || !en.d.includes('{0}') ? '' : flagMark('enchantment', 'ability')}</div></div>`
+      <div><h5>${esc(en.n)} ${TIER_NUM[(g.enl || 1) - 1]}</h5><p>${enchDesc(g.en, g.enl || 1)}</p>${en.tv || !en.d.includes('{0}') ? '' : flagMark('enchantment', 'ability')}</div></div>`
     : editable && !tal ? `<button class="ench add" data-act="pickench"><span class="effic"><img src="${D.art.enchSwirl}" alt=""></span><div><h5>${esc(UI.Label_Enchantment || 'Enchantment')}</h5></div></button>` : '';
   const rarBadge = rar ? `<span class="rtag" style="--rc:${rar.c}"><i style="-webkit-mask-image:url('${rar.badge}');mask-image:url('${rar.badge}')"></i>${esc(rar.n.toUpperCase())}</span>` : '';
   const paired = it.uq || it.base;  // base weapon <-> its unique: one entry, rarity decides which
@@ -411,9 +430,10 @@ function picker(key) {
 }
 // one picker tile: slot art, name, built-in (intrinsic) effect / enchantment, key numbers
 function tileHTML(it, current, act = 'equip') {
-  const intr = [...(it.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff', o: D.effects[D.templates[t].e].only })),
-    ...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench', o: D.enchantments[it.ue].only }] : []),
-    ...(it.k === 'talisman' ? (it.lv[Math.min(3, it.lv.length) - 1]?.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff' })) : [])];
+  const fxOf = t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff', o: originMark(it, 'e', D.templates[t].e, true) });
+  const intr = [...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench', o: originMark(it, 'n', it.ue, true) }] : []),
+    ...(it.fx || []).map(fxOf),
+    ...(it.k === 'talisman' ? (it.lv[Math.min(3, it.lv.length) - 1]?.fx || []).map(fxOf) : [])];
   const chips = [];
   if (it.ms) {
     const m = meleeTotals(it, attackSpeed('melee'));
@@ -432,7 +452,7 @@ function tileHTML(it, current, act = 'equip') {
   return `<button class="tile" data-act="${act}" data-id="${it.id}" ${current ? 'aria-current="true"' : ''}>
     ${cellHTML(it, null, 'tabindex="-1" aria-hidden="true"').replace('<button', '<span').replace(/<\/button>$/, '</span>')}
     <span class="tbody"><span class="tname">${esc(it.n)}</span>
-      ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span>${x.n ? `<b>${esc(x.n)}</b>${x.o?.length ? `<i class="only-t${x.o.length > 1 ? ' few' : ''}">◆</i>` : ''} ` : ''}${x.d}</span></span>`).join('')}
+      ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span>${x.n ? `<span class="tfn"><b>${esc(x.n)}</b>${x.o}</span>` : ''}${x.d}</span></span>`).join('')}
       ${it.d && !intr.length ? `<span class="tfx">${stLinks(esc(it.d))}</span>` : ''}
       ${chips.length ? `<span class="chips">${chips.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join('')}</span>` : ''}
     </span></button>`;
@@ -482,8 +502,8 @@ function totals() {
       (sum['e:' + t.e] ||= { kind: 'e', id: t.e, v: 0, n: 0 }).v += tplValue(t) || 0;
       sum['e:' + t.e].n++;
     }
-    const en = ITEM[g.id].ue || g.en;
-    if (en && totFilter !== 'effects') (sum['n:' + en] ||= { kind: 'n', id: en, v: 0, n: 0, l: [] }).l.push(ITEM[g.id].ue ? '' : TIER_NUM[(g.enl || 1) - 1]);
+    if (totFilter !== 'effects') for (const [en, l] of [[ITEM[g.id].ue, ''], [g.en, TIER_NUM[(g.enl || 1) - 1]]])
+      if (en) (sum['n:' + en] ||= { kind: 'n', id: en, v: 0, n: 0, l: [] }).l.push(l);
   }
   const cats = [['Offensive', UI.effect_offensive], ['Defensive', UI.effect_defensive], ['Utility', UI.effect_utility]];
   const row = x => {
@@ -572,7 +592,7 @@ function fxSearch() {
     const top = k === 'e' && fxTiers(id).at(-1);
     return `<div class="hit ${k === 'e' ? 'eff' : 'ench'}" role="button" tabindex="0" data-act="fxinfo" data-k="${k}" data-id="${id}" data-q="${esc((e.n + ' ' + e.d).toLowerCase())}">
       <span class="effic">${k === 'e' ? `<img class="fr" src="${D.art.effectFrame}" alt="">` : ''}${e.i ? `<img src="${e.i}" alt="">` : ''}</span>
-      <div><h5>${esc(e.n)}${onlyMark(e.only)}</h5><p>${k === 'e' ? tplDesc(top) : enchDesc(id)}</p></div></div>`;  // a div: the exclusive marker is a button
+      <div><h5>${esc(e.n)}${originMark(null, k, id)}</h5><p>${k === 'e' ? tplDesc(top) : enchDesc(id)}</p></div></div>`;  // a div: the tag is a button
   };
   const cats = [['Offensive', UI.effect_offensive], ['Defensive', UI.effect_defensive], ['Utility', UI.effect_utility]];
   const groups = cats.map(([c, label]) => {
@@ -596,7 +616,7 @@ function fxInfo(k, id) {
     const tiers = [...new Map(fxTiers(id).map(t => [tplDesc(t), t])).entries()].map(([desc, t]) =>
       `<span>${D.templates[t].t ? `<b>${esc(D.templates[t].t === 'U' ? '★' : D.templates[t].t)}</b> ` : ''}${desc}</span>`).join('');
     overlay(e.n, `<div class="fxopt"><span class="effic"><img class="fr" src="${D.art.effectFrame}" alt="">${e.i ? `<img src="${e.i}" alt="">` : ''}</span>
-        <div><h5>${esc(e.n)}${onlyMark(e.only)}</h5><div class="tiers">${tiers}</div></div></div>
+        <div><h5>${esc(e.n)}${originMark(null, 'e', id)}</h5><div class="tiers">${tiers}</div></div></div>
       ${fixed.length ? `<h4 class="grp">Built-in</h4>${gearBySection(fixed)}` : ''}
       ${roll.length ? `<h4 class="grp">Can roll ${flagMark('effects')}</h4>${gearBySection(roll)}` : ''}
       ${fixed.length || roll.length ? '' : '<p class="hint">–</p>'}`, { keepScroll: true });
@@ -607,7 +627,7 @@ function fxInfo(k, id) {
   const zones = D.zones.map((z, zi) => same.some(x => z.en.includes(x)) ? `<button data-act="zone" data-z="${zi}">${esc(z.n)}</button>` : '').join('');
   const tiers = e.u ? '' : `<div class="tiers">${TIER_NUM.slice(0, e.tiers).map((n, l) => `<span><b>${n}</b> ${enchDesc(id, l + 1)}</span>`).join('')}</div>`;
   overlay(e.n, `<div class="fxopt"><span class="effic"><img src="${e.i}" alt=""></span>
-      <div><h5>${esc(e.n)}${onlyMark(e.only)}</h5>${tiers || `<p>${enchDesc(id)}</p>`}</div></div>
+      <div><h5>${esc(e.n)}${originMark(null, k, id)}</h5>${tiers || `<p>${enchDesc(id)}</p>`}</div></div>
     ${gear.length ? `<h4 class="grp">Built-in</h4>${gearBySection(gear)}` : ''}
     ${zones ? `<div class="found"><span>${esc(UI.map)}</span>${zones}</div>` : ''}
     ${e.u ? '' : flagMark('enchantment', 'gear')}`, { keepScroll: true });
@@ -650,7 +670,7 @@ function newGear(id, prev) {  // a fresh item at the builder's defaults (prev = 
   const it = ITEM[id];
   const rar = it.k === 'talisman' ? null : it.u ? 'Unique' : it.k === 'artifact' ? 'Special'
     : (prev && prev !== 'Unique' ? prev : 'Rare');
-  return it.k === 'talisman' ? { id, lv: Math.min(3, it.lv.length) } : { id, rar, ip: defaultIP(rar), fx: [] };
+  return it.k === 'talisman' ? { id, lv: Math.min(3, it.lv.length) } : { id, rar, ip: defaultIP(rar), fx: [], storm: true };  // soul storm slot on by default
 }
 function equip(id) {
   S.gear[focus] = newGear(id, S.gear[focus]?.rar);
@@ -662,7 +682,7 @@ function equip(id) {
 }
 document.addEventListener('click', ev => {
   if (!ev.target.closest('.stt')) hideStatus();
-  const fl = ev.target.closest('.flag, .only');
+  const fl = ev.target.closest('.flag, button.otag');
   if (fl) { ev.stopPropagation(); toast(fl.dataset.flag); return; }
   const slot = ev.target.closest('[data-slot]');
   if (slot) {
