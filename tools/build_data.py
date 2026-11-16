@@ -278,8 +278,9 @@ def ensure_effect(etag):
         ICONLESS.add(etag)
     eff_out[etag] = {'n': e['name'], 'd': e['desc'], 'i': ver(icon), 'f': fmt_of(etag),
                      'c': effect_category(etag), 'lb': e.get('lower_is_better', False)}
-    if placeholder(e['name']):
-        eff_out[etag]['ph'] = 1  # the app hides the name and flags it
+    if placeholder(e['name']):  # dev key (DropChance_TalismanEffect): name it from the key's first part ("Drop Chance")
+        eff_out[etag]['n'] = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', e['name'].split('_')[0])
+        eff_out[etag]['ph'] = 1  # flagged: the name is ours, not the game's
         PLACEHOLDER.add(etag)
     if '{1}' in (e['desc'] or ''):
         eff_out[etag]['p'] = extra_values(etag)
@@ -839,7 +840,7 @@ if COMPANIONS:
          'level is in game code (the level only grants a tag no data table reads), not decoded yet.', COMPANIONS)
 if PLACEHOLDER:
     flag('text', 'The game ships placeholder text here (a dev key such as DropChance_TalismanEffect, or "... Talisman '
-         'Description"); the app hides it.', sorted(PLACEHOLDER))
+         'Description"); the app hides a placeholder description and names a placeholder effect from its key ("Drop Chance").', sorted(PLACEHOLDER))
 if UNFILLED:
     flag('text', 'A number in these descriptions is read from live game state, not from data; shown as ?', sorted(UNFILLED))
 if ICONLESS:

@@ -98,7 +98,6 @@ function stLinks(html) { return html.replace(ST_RE, m => stTag(ST_OF[m] || m, m)
 const tplValue = t => t.v ?? (t.r ? t.r[1] : null);
 function tplName(id) {
   const t = D.templates[id], e = D.effects[t.e];
-  if (e.ph) return '';  // the game's name is a dev placeholder (flagged)
   return e.n + (t.t && t.t !== 'U' ? ' ' + t.t : '');
 }
 function tplDesc(id) {
