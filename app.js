@@ -35,16 +35,35 @@ let focus = null;  // slot key shown in the tooltip column
 function load() {
   try {
     const h = location.hash.slice(1);
-    if (h.startsWith('b=')) return Object.assign({}, DEFAULT, JSON.parse(decodeURIComponent(atob(h.slice(2)))));
+    if (h.startsWith('b=')) return clean(Object.assign({}, DEFAULT, JSON.parse(decodeURIComponent(atob(h.slice(2))))));
     const ls = localStorage.getItem('mcd2.build');
-    if (ls) return Object.assign({}, DEFAULT, JSON.parse(ls));
+    if (ls) return clean(Object.assign({}, DEFAULT, JSON.parse(ls)));
   } catch (e) { /* fall through */ }
   return structuredClone(DEFAULT);
 }
+function clean(s) {  // a build saved by an older data build: drop what the current data no longer has
+  s.gear = s.gear && typeof s.gear === 'object' ? s.gear : {};
+  for (const [key, g] of Object.entries(s.gear)) {
+    const it = g && SLOT[key] && ITEM[g.id];
+    if (!it) { delete s.gear[key]; continue; }
+    if (it.k === 'talisman') continue;
+    if (!RAR[g.rar]) g.rar = it.u ? 'Unique' : it.k === 'artifact' ? 'Special' : 'Rare';  // newGear's defaults (S is not set yet)
+    if (!(+g.ip >= 1)) g.ip = Math.max(1, Math.floor((s.level || 50) * D.rules.ipPerLevel) + (RAR[g.rar]?.ipo || 0));
+    g.fx = Array.isArray(g.fx) ? g.fx.map(t => (t && D.templates[t] ? t : null)) : [];
+    if (g.en && !D.enchantments[g.en]) { delete g.en; delete g.enl; }
+  }
+  return s;
+}
+// Menu levels are history entries that keep the URL they were pushed on, so closing a menu lands on an entry
+// carrying an older #b=. Hashes this page wrote are its own history, not a shared link: they must not reload S.
+let curHash = location.hash;
+const ownHashes = new Set(['', curHash]);
 function save() {
   const j = JSON.stringify(S);
   localStorage.setItem('mcd2.build', j);
-  history.replaceState(history.state, '', '#b=' + btoa(encodeURIComponent(j)));  // keep the menu entry's state
+  curHash = '#b=' + btoa(encodeURIComponent(j));
+  ownHashes.add(curHash);
+  history.replaceState(history.state, '', curHash);  // keep the menu entry's state
 }
 
 // ---------------------------------------------------------------- numbers + text (game NumberToTextFormattingData)
@@ -611,5 +630,11 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 4200);
 }
-window.addEventListener('hashchange', () => { S = load(); renderAll(); });
+window.addEventListener('hashchange', () => {
+  if (ownHashes.has(location.hash)) {  // back onto one of our own entries: keep the current build in the URL
+    if (location.hash !== curHash) history.replaceState(history.state, '', curHash);
+    return;
+  }
+  S = load(); curHash = location.hash; ownHashes.add(curHash); renderAll();  // a pasted share link
+});
 renderAll();
