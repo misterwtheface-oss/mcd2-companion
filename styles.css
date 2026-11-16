@@ -244,3 +244,31 @@ body.nochar .char { display: none; }
 .only.few { color: #C7CAD3; border-color: #C7CAD3; }
 .only-t { font-style: normal; color: #FF7E2F; font-size: 10px; margin-left: 4px; }
 .only-t.few { color: #C7CAD3; }
+
+/* zones (app-added): area list, one area's mobs + gear + enchantment books */
+.btn img.loc { width: auto; height: 22px; }
+.zlist { display: flex; flex-direction: column; gap: 6px; }
+.zrow { display: flex; align-items: center; gap: 12px; padding: 6px 8px; text-align: left; font: 19px var(--f-head);
+  background: #ffffff08; border-radius: 3px; }
+.zrow:hover { background: #ffffff12; }
+.zrow img, .zrow .zi { width: 48px; height: 48px; flex: none; object-fit: contain; }
+.zhead { display: flex; align-items: center; gap: 12px; }
+.zhead img { width: 64px; height: 64px; flex: none; }
+.zhead p { margin: 0; color: var(--sub); font-size: 13px; }
+.zh { display: flex; align-items: center; gap: 8px; }
+.zh img { width: 20px; height: 20px; opacity: .85; filter: brightness(0) invert(84%) sepia(6%) saturate(250%) hue-rotate(185deg); }
+.mob { padding: 6px 0; border-bottom: 1px solid #ffffff12; }
+.mname { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mname b { font: 17px var(--f-head); font-weight: normal; }
+.role { font: normal 11px var(--f-tag); text-transform: uppercase; padding: 1px 6px; border: 1px solid #ffffff40; border-radius: 3px; color: var(--sub); }
+.role.r-b { color: var(--warn); border-color: var(--warn); }
+.role.r-m { color: var(--lvl); border-color: var(--lvl); }
+.mdrops { display: flex; gap: 8px; margin-top: 6px; --slot: 48px; }
+.zens { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.zen { display: inline-flex; align-items: center; gap: 6px; color: var(--ench); font: 15px var(--f-head); }
+.zen img { width: 28px; height: 28px; }
+.found { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border-top: 1px solid #ffffff1a; padding-top: 8px; font-size: 13px; color: var(--sub); }
+.found > span { font: 600 11px var(--f-body); text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+.found button { border: 2px solid #ffffff26; border-radius: 3px; padding: 3px 8px; color: var(--txt); }
+.found button:hover { border-color: #ffffff70; }
+.mplain { margin: 8px 0 0; font: 16px/1.6 var(--f-head); color: var(--txt); }

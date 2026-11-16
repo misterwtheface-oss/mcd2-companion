@@ -142,6 +142,7 @@ function renderStats() {
       <div class="ipbig"><span class="ipicon" aria-hidden="true"></span><span>${ip.total ?? '–'}</span>${flagMark('stats', 'headline')}</div>
       <div class="minis">${mini}</div></div>
     <div class="st fx"><button class="btn" data-act="totals"><img src="${D.art.cat.stats}" alt="">${esc(UI.inventory_totaleffects_toggle)}</button>
+      <button class="btn" data-act="zones"><img class="loc" src="${D.art.location}" alt="">${esc(UI.map)}</button>
       ${FEATURES.flags ? `<button class="btn ghost" data-act="flags" aria-label="Data notes">⚑</button>` : ''}</div>`;
 }
 
@@ -252,8 +253,8 @@ let statsOpen = false;
 document.addEventListener('toggle', ev => { if (ev.target.classList?.contains('wstats')) statsOpen = ev.target.open; }, true);
 
 // ---------------------------------------------------------------- tooltip (W_Tooltip) — read-only in hover, editable when focused
-function tooltipHTML(key, editable) {
-  const g = S.gear[key], it = g && ITEM[g.id];
+function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
+  const it = g && ITEM[g.id];
   if (!it) return `<div class="tt empty"><p class="hint">${esc(D.slotLabel[SLOT[key]?.kind] || '')}</p></div>`;
   const tal = it.k === 'talisman';
   const rar = tal ? null : RAR[g.rar];
@@ -291,7 +292,7 @@ function tooltipHTML(key, editable) {
     : `<span class="ipv"><span class="ipicon sm"></span>${g.ip}</span>`;
   const storm = !tal && editable ? `<button class="storm" data-act="storm" ${g.storm ? 'aria-pressed="true"' : ''} title="Soul storm reward">✦</button>` : (g.storm ? '<span class="storm on">✦</span>' : '');
   return `<div class="tt" style="--rc:${rar ? rar.c : '#C7CAD3'}">
-    ${editable ? '' : `<div class="ribbon">${esc(UI.tag_equipped || 'Equipped')}</div>`}
+    ${ribbon ? `<div class="ribbon">${esc(UI.tag_equipped || 'Equipped')}</div>` : ''}
     <div class="upper">
       <div class="meta"><div class="line1">${storm}${ipCtl}${rarBadge}</div>
         <h4>${esc(it.n)}</h4>
@@ -304,6 +305,7 @@ function tooltipHTML(key, editable) {
       ${it.comp ? `<div class="srow">${it.comp.hp ? `<span>Health <b>${it.comp.hp}</b></span>` : ''}${it.comp.dmg ? `<span>Damage <b>${it.comp.dmg}</b></span>` : ''}${flagMark('stats', 'Companion')}</div>` : ''}
       ${enchHTML}${effects}
       ${statsHTML(it).replace('<details class="wstats">', `<details class="wstats"${statsOpen ? ' open' : ''}>`)}
+      ${foundHTML(it)}
       ${editable ? `<div class="acts"><button class="btn" data-act="change">Change</button><button class="btn ghost" data-act="remove">Remove</button></div>` : ''}
     </div></div>`;
 }
@@ -335,8 +337,12 @@ function overlay(title, body, opts = {}) {
 // Menus and history: every open menu level is one history entry, so the device / browser back button (and Esc, and
 // the in-menu back) steps back one menu at a time; with no menu open, back is ordinary page history.
 let skipPops = 0;  // popstates caused by our own history.go() unwinding
+const ovScroll = [];  // scroll position of each open level, restored when a deeper level steps back to it
 function hideOv() { $('#ov').hidden = true; $('#ov').innerHTML = ''; }
-function push(fn) { ovStack.push(fn); history.pushState({ mcd2Menu: ovStack.length }, ''); fn(); }
+function push(fn) {
+  if (ovStack.length) ovScroll[ovStack.length - 1] = $('#ov .ovbody')?.scrollTop || 0;
+  ovStack.push(fn); history.pushState({ mcd2Menu: ovStack.length }, ''); fn();
+}
 function back() { if (ovStack.length) history.back(); }  // the popstate handler pops the level
 function closeOv() {  // close every level and drop their history entries
   const n = ovStack.length;
@@ -357,7 +363,10 @@ window.addEventListener('popstate', () => {
   if (!ovStack.length) return;  // base screen: ordinary history navigation
   ovStack.pop();
   const f = ovStack[ovStack.length - 1];
-  f ? f() : hideOv();
+  if (!f) return hideOv();
+  f();
+  const body = $('#ov .ovbody');
+  if (body && ovScroll[ovStack.length - 1] != null) body.scrollTop = ovScroll[ovStack.length - 1];
 });
 if (history.state?.mcd2Menu) history.replaceState(null, '');  // reload inside a menu: start on the base screen
 const sheetOpen = () => ovStack[0] === sheet;
@@ -374,7 +383,7 @@ function picker(key) {
     `<div class="tiles">${list.map(it => tileHTML(it, it.id === cur)).join('')}</div>`, { keepScroll: true });
 }
 // one picker tile: slot art, name, built-in (intrinsic) effect / enchantment, key numbers
-function tileHTML(it, current) {
+function tileHTML(it, current, act = 'equip') {
   const intr = [...(it.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff', o: D.effects[D.templates[t].e].only })),
     ...(it.ue ? [{ i: D.enchantments[it.ue].i, n: D.enchantments[it.ue].n, d: enchDesc(it.ue), c: 'ench', o: D.enchantments[it.ue].only }] : []),
     ...(it.k === 'talisman' ? (it.lv[Math.min(3, it.lv.length) - 1]?.fx || []).map(t => ({ i: D.effects[D.templates[t].e].i, n: tplName(t), d: tplDesc(t), c: 'eff' })) : [])];
@@ -393,7 +402,7 @@ function tileHTML(it, current) {
   if (it.comp?.dmg) chips.push(['Damage', it.comp.dmg]);
   if (it.cd != null) chips.push(['Cooldown', num(it.cd) + ' s']);
   if (it.soul) chips.push(['Souls', it.soul]);
-  return `<button class="tile" data-act="equip" data-id="${it.id}" ${current ? 'aria-current="true"' : ''}>
+  return `<button class="tile" data-act="${act}" data-id="${it.id}" ${current ? 'aria-current="true"' : ''}>
     ${cellHTML(it, null, 'tabindex="-1" aria-hidden="true"').replace('<button', '<span').replace(/<\/button>$/, '</span>')}
     <span class="tbody"><span class="tname">${esc(it.n)}</span>
       ${intr.map(x => `<span class="tfx ${x.c}">${x.i ? `<img src="${x.i}" alt="">` : ''}<span>${x.n ? `<b>${esc(x.n)}</b>${x.o?.length ? `<i class="only-t${x.o.length > 1 ? ' few' : ''}">◆</i>` : ''} ` : ''}${x.d}</span></span>`).join('')}
@@ -462,6 +471,40 @@ function totals() {
     .map(([k, n, i]) => `<button data-act="totf" data-f="${k}" ${totFilter === k ? 'aria-pressed="true"' : ''}><img src="${i}" alt="">${esc(n || k)}</button>`).join('');
   overlay(UI.inventory_totaleffects_toggle, `<div class="tabs">${tabs}</div>${flagMark('stats', 'sum')}${groups || '<p class="hint">–</p>'}`, { keepScroll: true, cls: 'totals' });
 }
+// ---------------------------------------------------------------- zones (areas: the mobs that spawn there, the gear its loot table adds)
+const ZONES_OF = {};  // item id -> zone indexes (area loot + mob drops); a unique counts its base item's zones
+D.zones.forEach((z, zi) => [...z.it, ...z.mobs.flatMap(m => m.d || [])].forEach(id => (ZONES_OF[id] ||= new Set()).add(zi)));
+function foundHTML(it) {
+  const zs = [...(ZONES_OF[it.id] || ZONES_OF[it.base] || [])];
+  return zs.length ? `<div class="found"><span>${esc(UI.map)}</span>${zs.map(zi => `<button data-act="zone" data-z="${zi}">${esc(D.zones[zi].n)}</button>`).join('')}</div>` : '';
+}
+function zoneList() {
+  overlay(UI.map, `<div class="zlist">${D.zones.map((z, i) => `<button class="zrow" data-act="zone" data-z="${i}">
+    ${z.i ? `<img src="${z.i}" alt="">` : '<span class="zi"></span>'}<span>${esc(z.n)}</span></button>`).join('')}</div>`);
+}
+const ROLE = { b: 'Boss', m: 'Miniboss' };
+function zoneView(i) {
+  const z = D.zones[i];
+  const mob = m => `<div class="mob"><div class="mname"><b>${esc(m.n)}</b>${m.r ? `<i class="role r-${m.r}">${ROLE[m.r]}</i>` : ''}
+      ${m.nt ? '<i class="role">Night</i>' : ''}${m.a ? flagMark('zones', 'arena') : ''}</div>
+    ${m.d ? `<div class="mdrops">${m.d.map(id => cellHTML(ITEM[id], null, `data-act="zitem" data-id="${id}"`)).join('')}</div>` : ''}</div>`;
+  const kinds = { weapons: ['melee', 'ranged'], armor: ['helmet', 'chest', 'legs', 'boots'], artifacts: ['artifact'], talismans: ['talisman'] };
+  const gear = D.sections.map(sec => {
+    const list = z.it.map(id => ITEM[id]).filter(it => kinds[sec.id].includes(it.k));
+    return list.length ? `<h4 class="grp zh"><img src="${sec.i}" alt="">${esc(sec.n)}</h4>
+      <div class="tiles">${list.map(it => tileHTML(it, false, 'zitem')).join('')}</div>` : '';
+  }).join('');
+  const books = z.en.map(id => `<span class="zen"><img src="${D.enchantments[id].i}" alt="">${esc(D.enchantments[id].n)}</span>`).join('');
+  overlay(z.n, `<div class="zhead">${z.i ? `<img src="${z.i}" alt="">` : ''}${z.pl.length ? `<p>${z.pl.map(esc).join(' · ')}</p>` : ''}</div>
+    <h4 class="grp">Mobs</h4>${z.mobs.filter(m => m.r || m.d || m.nt || m.a).map(mob).join('')}
+    ${z.mobs.some(m => !(m.r || m.d || m.nt || m.a)) ? `<p class="mplain">${z.mobs.filter(m => !(m.r || m.d || m.nt || m.a)).map(m => esc(m.n)).join(' · ')}</p>` : ''}
+    ${z.mobs.length ? '' : '<p class="hint">–</p>'}
+    ${gear || `<h4 class="grp">${esc(UI.header_weapons)}</h4><p class="hint">–</p>${flagMark('zones', 'loot table')}`}
+    ${books ? `<h4 class="grp zh"><img src="${D.art.cat.enchantment}" alt="">${esc(UI.header_enchantments)}</h4><div class="zens">${books}</div>` : ''}`);
+}
+function itemCard(id) {  // read-only tooltip of an item at the builder's defaults
+  overlay(ITEM[id].n, tooltipHTML(null, false, newGear(id), false), { cls: 'sheet' });
+}
 function flagsView() {
   overlay('Data notes', D.flags.map(f => `<div class="fl"><b>${esc(f.area)}</b><p>${esc(f.what)}</p>${f.ids ? `<p class="ids">${f.ids.map(esc).join(', ')}</p>` : ''}</div>`).join(''));
 }
@@ -493,12 +536,14 @@ function setRarity(g, r) {
   });
 }
 let swapped = null;
-function equip(id) {
+function newGear(id, prev) {  // a fresh item at the builder's defaults (prev = rarity to keep from the replaced item)
   const it = ITEM[id];
-  const prev = S.gear[focus]?.rar;
   const rar = it.k === 'talisman' ? null : it.u ? 'Unique' : it.k === 'artifact' ? 'Special'
     : (prev && prev !== 'Unique' ? prev : 'Rare');
-  S.gear[focus] = it.k === 'talisman' ? { id, lv: Math.min(3, it.lv.length) } : { id, rar, ip: defaultIP(rar), fx: [] };
+  return it.k === 'talisman' ? { id, lv: Math.min(3, it.lv.length) } : { id, rar, ip: defaultIP(rar), fx: [] };
+}
+function equip(id) {
+  S.gear[focus] = newGear(id, S.gear[focus]?.rar);
   save();
   if (isDesktop()) { closeOv(); renderAll(); return; }
   renderAll();
@@ -524,6 +569,9 @@ document.addEventListener('click', ev => {
     case 'back': back(); break;
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
     case 'totals': openFresh(totals); break;
+    case 'zones': openFresh(zoneList); break;
+    case 'zone': push(() => zoneView(+d.z)); break;
+    case 'zitem': push(() => itemCard(d.id)); break;
     case 'totf': totFilter = d.f; totals(); break;
     case 'flags': openFresh(flagsView); break;
     case 'skin': openFresh(skinPicker); break;

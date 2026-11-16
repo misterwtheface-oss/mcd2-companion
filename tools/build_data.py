@@ -538,6 +538,7 @@ def ensure_talisman_template(e):
 
 # ---------------------------------------------------------------- enchantments (books -> enchantment + tiers)
 ench = {}
+BOOK_ENCH = {}  # enchantment book item -> its enchantment (zone loot lists books)
 EFF_CI = {k.lower(): k for k in EFFECTS}
 
 
@@ -595,6 +596,7 @@ for b in load(TAB, 'enchantment_book.json'):
         errors.append(f'enchantment for book {b["tag"]} ({first}) not in effects.json')
         continue
     ensure_ench(base)
+    BOOK_ENCH[b['tag']] = base
 for cat, table in (('melee', 'DT_ItemDefinitionMelee'), ('ranged', 'DT_ItemDefinitionRanged'),
                    ('armor', 'DT_ItemDefinitionArmor'), ('artifact', 'DT_ItemDefinitionArtifact'),
                    ('talisman', 'DT_ItemDefinitionTalisman')):
@@ -738,6 +740,59 @@ ui_text = {k: INV[k] for k in ('header_weapons', 'header_armor', 'header_artifac
 for k in ('inventory_totaleffects_all', 'inventory_totaleffects_effects', 'inventory_totaleffects_enchantments'):
     if k in INV:
         ui_text[k] = INV[k]
+ui_text['map'] = LOC['Text/Release/TabLabels.csv']['tab_ingame_map']
+
+# ---------------------------------------------------------------- zones (extract tables/regions.json, tools/build_world.py)
+# Each region: area icon, places inside it, mobs (role, night-only, gear only that mob drops) and the gear + enchantment
+# books its loot table adds. Base items stay base (the drop is the base type; Unique swaps it, PROCEDURAL_MAP 3.6).
+ID_CI = {r['id'].lower(): r['id'] for r in items}
+NON_GEAR = {'SW.LootSlot.TNT', 'SW.LootSlot.Consumable', 'SW.LootSlot.Emeralds', 'SW.LootSlot.SpringStone'}
+ZONE_MISS, ARENA_BOSS, zones = set(), set(), []
+
+
+def app_items(tags):
+    out = []
+    for t in tags:
+        i = ID_CI.get(t.lower())
+        if i:
+            out.append(i)
+        else:
+            ZONE_MISS.add(t)
+    return sorted(set(out), key=out.index)
+
+
+for r in load(TAB, 'regions.json'):
+    mobs = []
+    for m in r['mobs']:
+        rec = {'n': m['name'], 'r': {'boss': 'b', 'miniboss': 'm'}.get(m['role'], '')}
+        if m['night']:
+            rec['nt'] = 1
+        if m.get('arena'):
+            rec['a'] = 1
+            ARENA_BOSS.add(m['name'])
+        d = app_items([t for s, ts in m['drops'].items() if s not in NON_GEAR for t in ts])
+        if d:
+            rec['d'] = d
+        mobs.append(rec)
+    loot = r['loot']
+    books = loot.get('SW.LootSlot.EnchantedBook', [])
+    for b in books:
+        if b not in BOOK_ENCH:
+            ZONE_MISS.add(b)
+    zones.append({'n': r['name'], 'i': ver(ship(r['icon'], 'zones')) if r['icon'] else None,
+                  'pl': sorted({a['name'] for a in r['areas']} - {r['name']}), 'mobs': mobs,
+                  'it': app_items([t for s, ts in loot.items() if s not in NON_GEAR | {'SW.LootSlot.EnchantedBook'} for t in ts]),
+                  'en': sorted({BOOK_ENCH[b] for b in books if b in BOOK_ENCH}, key=lambda e: ench[e]['n'])})
+    if not zones[-1]['i']:
+        flag('zones', 'No area icon in the game files', [r['name']])
+ui_art['location'] = ui('Plugins/OreUI/Content/UI/Icons/Location/T_UI_Icon_Location.png', 'icon_location')
+if ARENA_BOSS:
+    flag('zones', "Bosses are placed in a zone by their arena's name (the game data has no zone field for arenas); only arenas "
+         'whose name points at a single zone are used.', sorted(ARENA_BOSS))
+flag('zones', "Gear per zone is what the zone's loot table adds; drop chances per kill or chest are decided in game code "
+     'and not shown. Zones without their own loot table list no gear.')
+if ZONE_MISS:
+    flag('zones', 'Zone loot entries that are not items in the builder (left out)', sorted(ZONE_MISS))
 
 # ---------------------------------------------------------------- guards + write
 for rel in list(prov):
@@ -816,7 +871,7 @@ if LEVEL_MAX is None:
 out = {
     'ui': ui_text, 'art': ui_art, 'fonts': fonts, 'sections': sections, 'slotLabel': SLOT_LABEL,
     'rarities': rar, 'items': items, 'pools': pools, 'templates': tpl_out, 'effects': eff_out,
-    'enchantments': ench, 'skins': skins, 'flags': flags,
+    'enchantments': ench, 'skins': skins, 'zones': zones, 'flags': flags,
     'rules': {'maxEffects': const['NumberOfEffectsMax'], 'ipPerLevel': 1.5, 'levelMax': LEVEL_MAX},
 }
 for p in walk_paths(out):
@@ -838,7 +893,7 @@ kinds = {}
 for i in items:
     kinds[i['k']] = kinds.get(i['k'], 0) + 1
 print(f'items {len(items)} {kinds} | pools {len(pools)} | templates {len(tpl_out)} | effects {len(eff_out)} | '
-      f'enchantments {len(ench)} | skins {len(skins)} | assets {len(prov)} | flags {len(flags)} | errors {len(errors)}')
+      f'enchantments {len(ench)} | skins {len(skins)} | zones {len(zones)} | assets {len(prov)} | flags {len(flags)} | errors {len(errors)}')
 stamp = os.path.join(os.path.dirname(APP), 'tools', 'app', 'stamp_cache.py')
 if os.path.isfile(stamp) and os.path.isfile(os.path.join(APP, 'index.html')):
     os.system(f'python "{stamp}" "{APP}"')

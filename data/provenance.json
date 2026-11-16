@@ -513,6 +513,7 @@
  "assets/ui/empty_ranged.webp": "assets/tex/Dungeons/Plugins/SpicewoodUI/Content/Spicewood/UI/Widget/Inventory/PlayerInventory/EmptyCategoryIcons/T_UI_Icon_Ranged.png",
  "assets/ui/empty_talisman.webp": "assets/tex/Dungeons/Plugins/SpicewoodUI/Content/Spicewood/UI/Widget/Inventory/PlayerInventory/EmptyCategoryIcons/T_UI_Icon_Talisman.png",
  "assets/ui/icon_enchant.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Currency/T_UI_Icon_EnchantmentSwirl.png",
+ "assets/ui/icon_location.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/T_UI_Icon_Location.png",
  "assets/ui/icon_soul.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Widget/Tooltip/Modules/T_UI_Icon_Soul_Cost.png",
  "assets/ui/icon_timer.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Widget/Tooltip/Modules/T_UI_Icon_Timer.png",
  "assets/ui/rarity_common.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Rarity/T_UI_Rarity_Common.png",
@@ -521,5 +522,16 @@
  "assets/ui/rarity_unique.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Rarity/T_UI_Rarity_Unique.png",
  "assets/ui/slot_frame.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Button/SlotFrame/T_UI_Slot_Background.png",
  "assets/ui/slot_plus.webp": "assets/tex/Dungeons/Content/Spicewood/UI/HUD/Player/Hotbar/Artifacts/Slot/T_UI_ArtifactEmpty_Dark.png",
- "assets/ui/talisman_level.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Widget/Tooltip/Modules/T_UI_TalismanLevel.png"
+ "assets/ui/talisman_level.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Widget/Tooltip/Modules/T_UI_TalismanLevel.png",
+ "assets/zones/T_UI_Icon_BraveHaven.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_BraveHaven.png",
+ "assets/zones/T_UI_Icon_DeepDarkEntrance.webp": "assets/tex/Dungeons/Plugins/SpicewoodUI/Content/Spicewood/UI/Texture/WorldMap/Icons/T_UI_Icon_DeepDarkEntrance.png",
+ "assets/zones/T_UI_Icon_FrozenHighlands.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_FrozenHighlands.png",
+ "assets/zones/T_UI_Icon_HoneyCombFields.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_HoneyCombFields.png",
+ "assets/zones/T_UI_Icon_HowlingWoods.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_HowlingWoods.png",
+ "assets/zones/T_UI_Icon_HumblerHuskland.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_HumblerHuskland.png",
+ "assets/zones/T_UI_Icon_LullabyHills.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_LullabyHills.png",
+ "assets/zones/T_UI_Icon_RainyPlains.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_RainyPlains.png",
+ "assets/zones/T_UI_Icon_SingersMeadow.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_SingersMeadow.png",
+ "assets/zones/T_UI_Icon_SpiderCave.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_SpiderCave.png",
+ "assets/zones/T_UI_Icon_SquidCoast.webp": "assets/tex/Dungeons/Plugins/OreUI/Content/UI/Icons/Location/AreaIcons/T_UI_Icon_SquidCoast.png"
 }
