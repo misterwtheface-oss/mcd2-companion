@@ -158,7 +158,7 @@ function originTag(it, kind, id) {  // -> { c, n, tip }; it = the item carrying 
   const grps = Object.keys(GRP_N).filter(g => ROLL_GRP[id]?.has(g));
   if (grps.includes(GEAR_GRP(it.k))) return { c: 'basic', n: 'Basic', tip: `Also rolls on ${GRP_N[GEAR_GRP(it.k)].toLowerCase()}` };
   const n = grps.map(g => GRP_N[g]).join(' · ');
-  return { c: 'cross', n: `${n} effect`, tip: `Rolls on ${n.toLowerCase().replace(' · ', ' and ')}, not on ${it.k === 'talisman' ? 'talismans' : GRP_N[GEAR_GRP(it.k)].toLowerCase()}` };
+  return { c: 'cross', n: `${n} effect`, tip: `Rolls on ${n.toLowerCase().replace(' · ', ' and ')}${it.k === 'talisman' ? '' : `, not on ${GRP_N[GEAR_GRP(it.k)].toLowerCase()}`}` };  // talismans roll nothing: no contrast
 }
 function originMark(it, kind, id, inButton = false) {  // inside a button (picker tile) the tag is plain text
   const t = originTag(it, kind, id);
