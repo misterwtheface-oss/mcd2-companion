@@ -547,6 +547,24 @@ def ensure_talisman_template(e):
 ench = {}
 BOOK_ENCH = {}  # enchantment book item -> its enchantment (zone loot lists books)
 EFF_CI = {k.lower(): k for k in EFFECTS}
+# gear an enchantment can go on = EnchantmentData.RelevantSlots (GetFilteredEnchantmentsBySlot); tier rows inherit the
+# base row's. No row lists an artifact or talisman slot (achievement ENCHANT_EVERY_INVENTORY_SLOT_... lists the same six)
+SLOT_TAG_KIND = {'SW.ItemSlot.Equipment.MeleeWeapon': 'melee', 'SW.ItemSlot.Equipment.RangedWeapon': 'ranged',
+                 'SW.ItemSlot.Equipment.Armor.Helmet': 'helmet', 'SW.ItemSlot.Equipment.Armor.Chest': 'chest',
+                 'SW.ItemSlot.Equipment.Armor.Leggings': 'legs', 'SW.ItemSlot.Equipment.Armor.Boots': 'boots'}
+ENCH_SLOTS = {}
+for r in load(UFS, 'DT_EnchantmentDefinition.json'):
+    rs = (r.get('EnchantmentData') or {}).get('RelevantSlots') or {}
+    tags = [t['TagName'] for t in rs.get('GameplayTags') or []]
+    if tags:
+        unknown = [t for t in tags if t not in SLOT_TAG_KIND]
+        if unknown:
+            errors.append(f"enchantment {r['TypeTag']['TagName']}: unknown slot {unknown}")
+        ENCH_SLOTS[r['TypeTag']['TagName']] = [SLOT_TAG_KIND[t] for t in tags if t in SLOT_TAG_KIND]
+
+
+def ench_slots(tag):
+    return next((ENCH_SLOTS[t] for t in [tag] + parents(tag) if t in ENCH_SLOTS), None)
 
 
 def ensure_ench(tag, unique=False):
@@ -590,6 +608,11 @@ def ensure_ench(tag, unique=False):
             UNFILLED.add(tag)
     if unique:
         ench[tag]['u'] = 1
+    else:
+        slots = ench_slots(tag)
+        if not slots:
+            errors.append(f'enchantment {tag}: no RelevantSlots on it or its parents')
+        ench[tag]['s'] = slots or []
     return tag
 
 
@@ -620,8 +643,6 @@ for r in items:
     if r['u'] and r['k'] in ('melee', 'ranged') and 'base' not in r:
         errors.append(f"unique weapon {r['id']} has no base weapon")
 
-flag('enchantment', 'Which gear each enchantment can go on is not decoded yet; the builder allows any enchantment on any '
-     'weapon, armor piece or artifact.')
 flag('enchantment', 'Enchantments whose number comes from their ability (e.g. Fire Aspect, Ender Mines) show the base value '
      'at every level; how those grow from I to III is not decoded yet. Enchantments whose number is the level value '
      '(e.g. Piercing 1 / 3 / 5) are exact. Built-in enchantments on uniques that read the ability (e.g. Dynamo on Double '

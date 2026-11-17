@@ -50,7 +50,7 @@ function clean(s) {  // a build saved by an older data build: drop what the curr
     if (!RAR[g.rar]) g.rar = it.u ? 'Unique' : it.k === 'artifact' ? 'Special' : 'Rare';  // newGear's defaults (S is not set yet)
     if (!(+g.ip >= 1)) g.ip = Math.max(1, Math.floor((s.level || 50) * D.rules.ipPerLevel) + (RAR[g.rar]?.ipo || 0));
     g.fx = Array.isArray(g.fx) ? g.fx.map(t => (t && D.templates[t] ? t : null)) : [];
-    if (g.en && !D.enchantments[g.en]) { delete g.en; delete g.enl; }
+    if (g.en && !enchFits(g.en, it)) { delete g.en; delete g.enl; }
   }
   return s;
 }
@@ -104,6 +104,9 @@ function tplDesc(id) {
   const t = D.templates[id], e = D.effects[t.e];
   return fill(e.d, fmtNum(tplValue(t), e.f), e.p);
 }
+// enchantments a book can put on this item: the game's per-enchantment slot list (none fit artifacts or talismans)
+function enchFits(id, it) { return !!D.enchantments[id]?.s?.includes(it.k); }
+function enchantable(it) { return Object.keys(D.enchantments).some(id => enchFits(id, it)); }
 function enchDesc(id, lvl = 1) {  // tv = per-level values (I / II / III) when the number is the level's magnitude
   const e = D.enchantments[id];
   if (!e.d.includes('{0}')) return stLinks(esc(e.d));
@@ -330,7 +333,7 @@ function tooltipHTML(key, editable, g = S.gear[key], ribbon = !editable) {
   const enchHTML = en ? `<div class="ench${editable ? ' edit' : ''}" ${editable ? 'data-act="pickench"' : ''}>
       <span class="effic"><img src="${en.i}" alt=""></span>
       <div><h5>${esc(en.n)} ${TIER_NUM[(g.enl || 1) - 1]}</h5><p>${enchDesc(g.en, g.enl || 1)}</p>${en.tv || !en.d.includes('{0}') ? '' : flagMark('enchantment', 'ability')}</div></div>`
-    : editable && !tal ? `<button class="ench add" data-act="pickench"><span class="effic"><img src="${D.art.enchSwirl}" alt=""></span><div><h5>${esc(UI.Label_Enchantment || 'Enchantment')}</h5></div></button>` : '';
+    : editable && enchantable(it) ? `<button class="ench add" data-act="pickench"><span class="effic"><img src="${D.art.enchSwirl}" alt=""></span><div><h5>${esc(UI.Label_Enchantment || 'Enchantment')}</h5></div></button>` : '';
   const rarBadge = rar ? `<span class="rtag" style="--rc:${rar.c}"><i style="-webkit-mask-image:url('${rar.badge}');mask-image:url('${rar.badge}')"></i>${esc(rar.n.toUpperCase())}</span>` : '';
   const paired = it.uq || it.base;  // base weapon <-> its unique: one entry, rarity decides which
   const rarPick = editable && !tal && (!it.u || paired) ? `<div class="rpick">${D.rarities.filter(r => paired || r.id !== 'Unique').map(r =>
@@ -482,7 +485,8 @@ function fxPicker(i) {
 }
 function enchPicker() {
   const g = S.gear[focus];
-  const list = Object.entries(D.enchantments).filter(([, e]) => !e.u).sort((a, b) => a[1].n.localeCompare(b[1].n));
+  const it = ITEM[g.id];
+  const list = Object.entries(D.enchantments).filter(([id, e]) => !e.u && enchFits(id, it)).sort((a, b) => a[1].n.localeCompare(b[1].n));
   overlay(UI.header_enchantments || 'Enchantments', list.map(([id, e]) => `<div class="fxopt"><span class="effic"><img src="${e.i}" alt=""></span>
     <div><h5>${esc(e.n)}</h5><p>${enchDesc(id, g.en === id ? (g.enl || 1) : 1)}</p><div class="tiers row">${TIER_NUM.slice(0, e.tiers).map((n, l) =>
       `<button data-act="setench" data-id="${id}" data-l="${l + 1}" ${g.en === id && (g.enl || 1) === l + 1 ? 'aria-pressed="true"' : ''}><b>${n}</b></button>`).join('')}</div></div></div>`).join('')
@@ -635,8 +639,7 @@ function fxInfo(k, id) {
   overlay(e.n, `<div class="fxopt"><span class="effic"><img src="${e.i}" alt=""></span>
       <div><h5>${esc(e.n)}${originMark(null, k, id)}</h5>${tiers || `<p>${enchDesc(id)}</p>`}</div></div>
     ${gear.length ? `<h4 class="grp">Built-in</h4>${gearBySection(gear)}` : ''}
-    ${zones ? `<div class="found"><span>${esc(UI.map)}</span>${zones}</div>` : ''}
-    ${e.u ? '' : flagMark('enchantment', 'gear')}`, { keepScroll: true });
+    ${zones ? `<div class="found"><span>${esc(UI.map)}</span>${zones}</div>` : ''}`, { keepScroll: true });
 }
 function itemCard(id) {  // read-only tooltip of an item at the builder's defaults
   overlay(ITEM[id].n, tooltipHTML(null, false, newGear(id), false), { cls: 'sheet' });

@@ -25,7 +25,8 @@
 - [ ] Headline Item Power aggregation (`EItemPowerCategory::Total`, GetPlayerItemPower `0x146155280` -> `0x14617ceb0`,
       category -> attribute map `0x146179e30`); app shows the average of equipped items
 - [ ] Effect stacking for the totals panel (EffectTotal text uses attribute value + Offset); app shows the sum
-- [ ] Enchantment I-III scaling for ability-based enchantments (level-magnitude ones done) and per-gear applicability; 5 descriptions read live state ({0}/{1} shown as ?)
+- [x] Enchantment slots per gear: `DT_EnchantmentDefinition.EnchantmentData.RelevantSlots` (tier rows inherit) -> `s` on each enchantment; picker offers only fitting ones; artifacts and talismans take none (achievement ENCHANT_EVERY_INVENTORY_SLOT_WITH_LEVEL_3_ENCHANTMENTS lists the same 6 slots). 2026-11-16
+- [ ] Enchantment I-III scaling for ability-based enchantments (level-magnitude ones done); 5 descriptions read live state ({0}/{1} shown as ?)
 - [ ] Armor base protection by weight class; item-power factor on weapon damage (PROCEDURAL_MAP 8, needs threat)
 - [ ] Arrow base damage (not in data); queued-attack cancel timing in combos; Short Spear has 3 hits but 2 animation sections
 - [ ] Companion talisman level scaling (level grants SW.Talisman.<X>.Level.N, read only in code)
