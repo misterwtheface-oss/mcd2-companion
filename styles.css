@@ -85,8 +85,8 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .slot .ic { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: contain; }
 .slot .sil { position: absolute; inset: 4%; width: 92%; height: 92%; object-fit: contain; opacity: .9; }
 .slot .plus { position: absolute; top: -18%; right: -18%; width: 34%; height: 34%; }
-.slot .unslot { position: absolute; top: -18%; right: -18%; width: 34%; height: 34%; display: grid; place-items: center;
-  font: calc(var(--slot) * .3)/1 var(--f-head); color: var(--sub); text-shadow: 2px 2px 0 #000; }
+.slot .unslot { position: absolute; top: -21%; right: -21%; width: 30%; height: 30%; display: grid; place-items: center;
+  font: calc(var(--slot) * .18)/1 var(--f-head); color: #ffffff70; text-shadow: 1px 1px 0 #000; }
 .slot .unslot:hover { color: #fff; }
 .slot .b-ip { position: absolute; right: -14%; bottom: -16%; font: calc(var(--slot) * .19)/1 var(--f-head); color: var(--txt);
   text-shadow: 2px 2px 0 #000; }
