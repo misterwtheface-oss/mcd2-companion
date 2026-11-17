@@ -69,7 +69,6 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 /* ---------------- slot grid (W_GearOverviewSlots: 4 columns, headers per category) */
 .gear { display: flex; flex-direction: column; gap: 4px; }
 .sec h2 { display: flex; align-items: center; gap: 8px; margin: 6px 0 6px; font: 600 15px var(--f-body); letter-spacing: .05em; color: var(--txt); }
-.sec h2 .secx { margin: -6px 0 -6px auto; width: 36px; height: 36px; font: 26px/1 var(--f-head); color: var(--sub); }
 .sec h2 img { width: 24px; height: 24px; opacity: .85; filter: brightness(0) invert(84%) sepia(6%) saturate(250%) hue-rotate(185deg); }
 .row { display: grid; grid-template-columns: repeat(4, var(--slot)); gap: 10px; }
 /* phone: the 4 slots of a row fill the width (inv padding 2 x 12, 3 gaps of 10) */
@@ -86,6 +85,9 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .slot .ic { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: contain; }
 .slot .sil { position: absolute; inset: 4%; width: 92%; height: 92%; object-fit: contain; opacity: .9; }
 .slot .plus { position: absolute; top: -18%; right: -18%; width: 34%; height: 34%; }
+.slot .unslot { position: absolute; top: -18%; right: -18%; width: 34%; height: 34%; display: grid; place-items: center;
+  font: calc(var(--slot) * .3)/1 var(--f-head); color: var(--sub); text-shadow: 2px 2px 0 #000; }
+.slot .unslot:hover { color: #fff; }
 .slot .b-ip { position: absolute; right: -14%; bottom: -16%; font: calc(var(--slot) * .19)/1 var(--f-head); color: var(--txt);
   text-shadow: 2px 2px 0 #000; }
 .slot .b-lv { position: absolute; right: -12%; bottom: -16%; font: calc(var(--slot) * .19)/1 var(--f-head); color: var(--lvl); text-shadow: 2px 2px 0 #000; }

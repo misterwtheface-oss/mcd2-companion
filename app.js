@@ -207,7 +207,9 @@ function slotHTML(key, g, extra = '') {
     return `<button class="slot empty" data-slot="${key}" ${extra} aria-label="${esc(D.slotLabel[s.kind] || s.kind)}">
       <img class="sil" src="${D.art.empty[s.kind]}" alt=""><img class="plus" src="${D.art.plus}" alt=""></button>`;
   }
-  return cellHTML(it, g, `data-slot="${key}" ${extra}`);
+  // × in the top right (where an empty slot shows +): removes just this item; a span, the slot itself is a button
+  return cellHTML(it, g, `data-slot="${key}" ${extra}`)
+    .replace(/<\/button>$/, `<span class="unslot" role="button" data-unslot="${key}" aria-label="Remove">×</span></button>`);
 }
 function cellHTML(it, g, attrs) {
   const rar = it.k === 'talisman' ? null : (g?.rar || (it.u ? 'Unique' : 'Common'));
@@ -221,8 +223,7 @@ function cellHTML(it, g, attrs) {
 }
 function renderGear() {
   $('#gear').innerHTML = D.sections.map(sec => `
-    <div class="sec sec-${sec.id}"><h2><img src="${sec.i}" alt="">${esc(sec.n.toUpperCase())}${SLOTS.some(s => s.section === sec.id && S.gear[s.key])
-      ? `<button class="x secx" data-act="clearsec" data-sec="${sec.id}" aria-label="Clear ${esc(sec.n)}">×</button>` : ''}</h2>
+    <div class="sec sec-${sec.id}"><h2><img src="${sec.i}" alt="">${esc(sec.n.toUpperCase())}</h2>
       <div class="row">${SLOTS.filter(s => s.section === sec.id)
         .map(s => slotHTML(s.key, S.gear[s.key], focus === s.key ? 'aria-current="true"' : '')).join('')}</div></div>`).join('');
 }
@@ -689,6 +690,8 @@ document.addEventListener('click', ev => {
   if (!ev.target.closest('.stt')) hideStatus();
   const fl = ev.target.closest('.flag, button.otag');
   if (fl) { ev.stopPropagation(); toast(fl.dataset.flag); return; }
+  const un = ev.target.closest('[data-unslot]');
+  if (un) { delete S.gear[un.dataset.unslot]; if (focus === un.dataset.unslot) focus = null; save(); renderAll(); return; }
   const slot = ev.target.closest('[data-slot]');
   if (slot) {
     const key = slot.dataset.slot;
@@ -702,7 +705,6 @@ document.addEventListener('click', ev => {
   const d = a.dataset, g = S.gear[focus];
   switch (d.act) {
     case 'close': closeOv(); break;
-    case 'clearsec': SLOTS.filter(s => s.section === d.sec).forEach(s => { delete S.gear[s.key]; if (focus === s.key) focus = null; }); save(); renderAll(); break;
     case 'toastx': $('#toast').classList.remove('on'); break;
     case 'back': back(); break;
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
