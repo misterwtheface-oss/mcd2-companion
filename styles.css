@@ -298,9 +298,10 @@ body.nochar .char { display: none; }
   padding: 10px 12px; background: #0b141df5; border: 2px solid #ffffff30; border-radius: 3px; box-shadow: 0 6px 24px #0009; pointer-events: none; }
 #stpop[hidden] { display: none; }
 #stpop.pin { pointer-events: auto; padding-right: 36px; }
-/* close buttons on the popups outside the menu overlay (status card, toast) */
-#stpop .x, #toast .x { position: absolute; top: 4px; right: 4px; z-index: 2; width: 30px; height: 30px;
+/* close buttons outside the menu overlay (desktop item panel, status card, toast) */
+.tipx, #stpop .x, #toast .x { position: absolute; top: 4px; right: 4px; z-index: 2; width: 30px; height: 30px;
   font: 24px/1 var(--f-head); color: var(--sub); }
+.tipx { top: 8px; right: 48px; }
 #toast { padding-right: 40px; }
 #stpop img { width: 40px; height: 40px; flex: none; }
 #stpop h5 { margin: 0 0 3px; font: 17px/1.1 var(--f-head); color: var(--sub2); }

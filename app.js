@@ -362,7 +362,7 @@ const compRow = it => `<div class="eff"><span class="effic"><img class="fr" src=
   <div><h5>${esc(it.comp.n)}${originMark(it, 'c')}</h5><p>${stLinks(esc(it.d || ''))}</p></div></div>`;
 const isDesktop = () => matchMedia('(min-width: 1000px)').matches;
 function renderTip() {
-  $('#tip').innerHTML = focus ? tooltipHTML(focus, true) : '';
+  $('#tip').innerHTML = focus ? `<button class="x tipx" data-act="unfocus" aria-label="Close">×</button>${tooltipHTML(focus, true)}` : '';  // × closes the panel
 }
 function playSwap() {  // the item became its base / unique: cross-fade the icon and name in place
   if (!swapped) return;
@@ -705,6 +705,7 @@ document.addEventListener('click', ev => {
   const d = a.dataset, g = S.gear[focus];
   switch (d.act) {
     case 'close': closeOv(); break;
+    case 'unfocus': setFocus(null); break;
     case 'toastx': $('#toast').classList.remove('on'); break;
     case 'back': back(); break;
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
