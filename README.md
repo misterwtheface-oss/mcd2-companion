@@ -8,6 +8,7 @@ talisman level in the tooltip. Static HTML/CSS/JS; the build is saved in the URL
 ## Build
 ```sh
 python tools/build_data.py --strict    # ../_mcd2_extract -> data/data.js + assets/ (+ cache-bust stamp)
+node tools/audit_intrinsics.js         # every built-in effect / enchantment / summon has a tag, name, description
 ```
 Needs Pillow and `fonttools` + `brotli` (game fonts are subset to Latin woff2). Preview with
 `python ../tools/app/shot.py . out.png` (starts and stops its own server). Commits run `.githooks/pre-commit`
