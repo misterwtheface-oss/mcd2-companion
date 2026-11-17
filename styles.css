@@ -73,13 +73,14 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .row { display: grid; grid-template-columns: repeat(4, var(--slot)); gap: 10px; }
 /* phone: the 4 slots of a row fill the width (inv padding 2 x 12, 3 gaps of 10) */
 @media (max-width: 639px) { .gear { --slot: min(calc((100vw - 54px) / 4), 140px); } }
-/* one slot: ButtonStyle_GearSlot_Equipped (9-slice T_UI_Slot_Background, margin .175) + RarityBG inset 44/280 + icon 180/280 x .8 */
+/* one slot: ButtonStyle_GearSlot_Equipped (9-slice T_UI_Slot_Background, margin .175) + icon 180/280 x .8; RarityBG grown
+   from the game's inset 44/280 to meet the frame ring (ends 27/45 into the slice): no dark band between them */
 .slot { position: relative; width: var(--slot); height: var(--slot); display: block;
   border: calc(var(--slot) * .175) solid transparent; border-image: var(--slotimg) 45 fill stretch;
   transition: transform .08s; }
 .slot:hover, .slot[aria-current="true"] { transform: scale(1.043); }
 .slot[aria-current="true"] { filter: drop-shadow(0 0 6px #ffffffaa); }
-.slot .rbg { position: absolute; inset: calc(var(--slot) * -.02); border-radius: 2px;
+.slot .rbg { position: absolute; inset: calc(var(--slot) * -.068); border-radius: 2px;
   background: radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--rc) 70%, transparent), color-mix(in srgb, var(--rc) 22%, #171A1C) 75%); }
 .slot.empty .rbg, .slot.empty { background: none; }
 .slot .ic { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: contain; }
