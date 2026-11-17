@@ -71,6 +71,8 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .sec h2 { display: flex; align-items: center; gap: 8px; margin: 6px 0 6px; font: 600 15px var(--f-body); letter-spacing: .05em; color: var(--txt); }
 .sec h2 img { width: 24px; height: 24px; opacity: .85; filter: brightness(0) invert(84%) sepia(6%) saturate(250%) hue-rotate(185deg); }
 .row { display: grid; grid-template-columns: repeat(4, var(--slot)); gap: 10px; }
+/* phone: the 4 slots of a row fill the width (inv padding 2 x 12, 3 gaps of 10) */
+@media (max-width: 639px) { .gear { --slot: min(calc((100vw - 54px) / 4), 140px); } }
 /* one slot: ButtonStyle_GearSlot_Equipped (9-slice T_UI_Slot_Background, margin .175) + RarityBG inset 44/280 + icon 180/280 x .8 */
 .slot { position: relative; width: var(--slot); height: var(--slot); display: block;
   border: calc(var(--slot) * .175) solid transparent; border-image: var(--slotimg) 45 fill stretch;
@@ -171,7 +173,7 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 #toast { position: fixed; left: 12px; right: 12px; bottom: 16px; z-index: 20; padding: 10px 14px; background: #1b1f26f2;
   border: 1px solid var(--warn); border-radius: 4px; color: var(--sub); font-size: 13px; opacity: 0; transform: translateY(10px);
   transition: .2s; pointer-events: none; }
-#toast.on { opacity: 1; transform: none; }
+#toast.on { opacity: 1; transform: none; pointer-events: auto; }
 
 /* ---------------- tablet / desktop: the game's layout (character | slots | tooltip) */
 @media (min-width: 640px) {
@@ -292,6 +294,12 @@ body.nochar .char { display: none; }
 #stpop { position: fixed; z-index: 60; display: flex; gap: 10px; align-items: flex-start; width: max-content; max-width: min(300px, calc(100vw - 16px));
   padding: 10px 12px; background: #0b141df5; border: 2px solid #ffffff30; border-radius: 3px; box-shadow: 0 6px 24px #0009; pointer-events: none; }
 #stpop[hidden] { display: none; }
+#stpop.pin { pointer-events: auto; padding-right: 36px; }
+/* close buttons on the containers outside the menu overlay (desktop item panel, status card, toast) */
+.tipx, #stpop .x, #toast .x { position: absolute; top: 4px; right: 4px; z-index: 2; width: 30px; height: 30px;
+  font: 24px/1 var(--f-head); color: var(--sub); }
+.tipx { top: 8px; right: 48px; }
+#toast { padding-right: 40px; }
 #stpop img { width: 40px; height: 40px; flex: none; }
 #stpop h5 { margin: 0 0 3px; font: 17px/1.1 var(--f-head); color: var(--sub2); }
 #stpop p { margin: 0; font-size: 13px; color: var(--sub); }

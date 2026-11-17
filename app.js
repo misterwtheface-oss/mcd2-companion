@@ -360,7 +360,7 @@ const compRow = it => `<div class="eff"><span class="effic"><img class="fr" src=
   <div><h5>${esc(it.comp.n)}${originMark(it, 'c')}</h5><p>${stLinks(esc(it.d || ''))}</p></div></div>`;
 const isDesktop = () => matchMedia('(min-width: 1000px)').matches;
 function renderTip() {
-  $('#tip').innerHTML = focus ? tooltipHTML(focus, true) : '';
+  $('#tip').innerHTML = focus ? `<button class="x tipx" data-act="unfocus" aria-label="Close">×</button>${tooltipHTML(focus, true)}` : '';
 }
 function playSwap() {  // the item became its base / unique: cross-fade the icon and name in place
   if (!swapped) return;
@@ -701,6 +701,8 @@ document.addEventListener('click', ev => {
   const d = a.dataset, g = S.gear[focus];
   switch (d.act) {
     case 'close': closeOv(); break;
+    case 'unfocus': setFocus(null); break;
+    case 'toastx': $('#toast').classList.remove('on'); break;
     case 'back': back(); break;
     case 'lvl': S.level = Math.max(1, Math.min(D.rules.levelMax, S.level + +d.d)); save(); renderStats(); break;
     case 'totals': openFresh(totals); break;
@@ -733,14 +735,6 @@ document.addEventListener('change', ev => {
   if (ev.target.id === 'lvl') { S.level = Math.max(1, Math.min(D.rules.levelMax, +ev.target.value || 1)); save(); renderStats(); }
   if (ev.target.id === 'ipin' && S.gear[focus]) { S.gear[focus].ip = Math.max(1, Math.min(999, +ev.target.value || 1)); save(); renderAll(); }
 });
-document.addEventListener('mouseover', ev => {  // desktop: hovering a slot previews it in the tooltip column, like the game
-  if (!isDesktop()) return;
-  const slot = ev.target.closest('#gear [data-slot]');
-  if (slot && S.gear[slot.dataset.slot] && slot.dataset.slot !== focus) $('#tip').innerHTML = tooltipHTML(slot.dataset.slot, false);
-});
-document.addEventListener('mouseout', ev => {
-  if (isDesktop() && ev.target.closest('#gear [data-slot]') && !ev.relatedTarget?.closest?.('#gear [data-slot]')) renderTip();
-});
 document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape' && stPop()?.hidden === false) return hideStatus();
   if (ev.key === 'Escape' && !$('#ov').hidden) back();
@@ -754,8 +748,9 @@ function showStatus(el, pin) {
   if (!s) return;
   let p = stPop();
   if (!p) { p = document.createElement('div'); p.id = 'stpop'; document.body.append(p); }
-  p.innerHTML = `${s.i ? `<img src="${s.i}" alt="">` : ''}<div><h5>${esc(s.n)}</h5><p>${esc(s.d)}</p></div>`;
+  p.innerHTML = `${s.i ? `<img src="${s.i}" alt="">` : ''}<div><h5>${esc(s.n)}</h5><p>${esc(s.d)}</p></div>${pin ? '<button class="x" data-act="stx" aria-label="Close">×</button>' : ''}`;
   p.hidden = false;
+  p.classList.toggle('pin', pin);
   stPinned = pin;
   const r = el.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
   p.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
@@ -769,7 +764,7 @@ let toastT;
 function toast(msg) {
   let t = $('#toast');
   if (!t) { t = document.createElement('div'); t.id = 'toast'; document.body.append(t); }
-  t.textContent = msg; t.classList.add('on');
+  t.innerHTML = `<span>${esc(msg)}</span><button class="x" data-act="toastx" aria-label="Close">×</button>`; t.classList.add('on');
   clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 4200);
 }
 window.addEventListener('hashchange', () => {
