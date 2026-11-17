@@ -69,6 +69,7 @@ input::-webkit-inner-spin-button { -webkit-appearance: none; }
 /* ---------------- slot grid (W_GearOverviewSlots: 4 columns, headers per category) */
 .gear { display: flex; flex-direction: column; gap: 4px; }
 .sec h2 { display: flex; align-items: center; gap: 8px; margin: 6px 0 6px; font: 600 15px var(--f-body); letter-spacing: .05em; color: var(--txt); }
+.sec h2 .secx { margin: -6px 0 -6px auto; width: 36px; height: 36px; font: 26px/1 var(--f-head); color: var(--sub); }
 .sec h2 img { width: 24px; height: 24px; opacity: .85; filter: brightness(0) invert(84%) sepia(6%) saturate(250%) hue-rotate(185deg); }
 .row { display: grid; grid-template-columns: repeat(4, var(--slot)); gap: 10px; }
 /* phone: the 4 slots of a row fill the width (inv padding 2 x 12, 3 gaps of 10) */
@@ -295,10 +296,9 @@ body.nochar .char { display: none; }
   padding: 10px 12px; background: #0b141df5; border: 2px solid #ffffff30; border-radius: 3px; box-shadow: 0 6px 24px #0009; pointer-events: none; }
 #stpop[hidden] { display: none; }
 #stpop.pin { pointer-events: auto; padding-right: 36px; }
-/* close buttons on the containers outside the menu overlay (desktop item panel, status card, toast) */
-.tipx, #stpop .x, #toast .x { position: absolute; top: 4px; right: 4px; z-index: 2; width: 30px; height: 30px;
+/* close buttons on the popups outside the menu overlay (status card, toast) */
+#stpop .x, #toast .x { position: absolute; top: 4px; right: 4px; z-index: 2; width: 30px; height: 30px;
   font: 24px/1 var(--f-head); color: var(--sub); }
-.tipx { top: 8px; right: 48px; }
 #toast { padding-right: 40px; }
 #stpop img { width: 40px; height: 40px; flex: none; }
 #stpop h5 { margin: 0 0 3px; font: 17px/1.1 var(--f-head); color: var(--sub2); }
